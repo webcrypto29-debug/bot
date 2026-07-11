@@ -3,49 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Erica Bot Reward</title>
+    <title>Rewarded Ad</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Monetag SDK with your Zone ID -->
-    <script src='https://libtl.com/sdk.js' data-zone='11248744' data-sdk='show_11248744'></script>
     <style>
-        body { background: #0f0f0f; color: #fff; text-align: center; font-family: sans-serif; padding-top: 80px; }
-        .btn { background: #0088cc; color: #fff; border: none; padding: 18px 36px; border-radius: 15px; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .status { margin-top: 30px; color: #888; font-size: 14px; }
+        body { background: #0f0f0f; color: #fff; text-align: center; font-family: sans-serif; padding: 40px 20px; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 2s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .status { margin-top: 20px; font-size: 18px; color: #aaa; }
+        #ad-container { display: none; }
     </style>
 </head>
 <body>
     <h2>🎁 Rewarded Ad</h2>
-    <p>Complete the ad to earn **3 Credits**.</p>
-
-    <button class="btn" id="startBtn">▶ WATCH AD NOW</button>
-    <div id="status" class="status">Waiting for SDK...</div>
+    <div id="loading">
+        <div class="loader"></div>
+        <p class="status">Loading Advertisement...</p>
+    </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        document.getElementById('startBtn').onclick = function() {
-            this.style.display = 'none';
-            document.getElementById('status').innerText = "Ad is loading... Please wait 5-10 seconds.";
+        // Get params from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session');
+        const fileCode = urlParams.get('file');
 
-            // Debugging check
-            if (typeof show_11248744 === 'function') {
-                show_11248744().then(() => {
-                    document.getElementById('status').innerText = "✅ Success! Getting your reward...";
-                    // Redirect to bot with success token
-                    setTimeout(() => {
-                        window.location.href = "https://t.me/Ericafilebot?start=ad_success_reward";
-                    }, 1000);
-                }).catch(e => {
-                    console.error(e);
-                    document.getElementById('status').innerText = "❌ Ad failed to load. Please close and use Direct Link.";
-                    document.getElementById('startBtn').style.display = 'block';
+        // Dynamically create script for Monetag SDK
+        // This is necessary because zoneId comes from server/config
+        // Since we are static, we rely on the bot passing it or fetching it.
+        // For simplicity, we assume the bot index.js serves this and we can hardcode the Zone ID
+        // OR better, index.js can serve it. But here we use standard script injection.
+
+        (function(s,u,z,p){s.src=u,s.setAttribute('data-zone',z),p.appendChild(s);})(document.createElement('script'),'https://iclicknow.com/sdk.js', '<!--ZONE_ID-->', document.body);
+
+        // Monetag Reward Handler
+        function onReward() {
+            document.getElementById('loading').innerHTML = "<h3>✅ Ad Completed!</h3><p>Granting rewards...</p>";
+            // Redirect back to Telegram bot with success payload
+            // This is handled in src/handlers/user.js bot.start
+            setTimeout(() => {
+                window.location.href = `https://t.me/<!--BOT_USERNAME-->?start=reward_${sessionId}_${fileCode}`;
+            }, 1000);
+        }
+
+        // Check for SDK and show ad
+        const checkInterval = setInterval(() => {
+            if (typeof show_<!--ZONE_ID--> === 'function') {
+                clearInterval(checkInterval);
+                show_<!--ZONE_ID-->().then(() => {
+                    onReward();
+                }).catch((e) => {
+                    alert("❌ Ad failed to load. Please try again.");
+                    tg.close();
                 });
-            } else {
-                alert("Ad System (SDK) is not ready yet. This happens if you have an AdBlocker or your Network is blocking Monetag. Try using a VPN!");
-                location.reload();
             }
-        };
+        }, 1000);
+
+        // Fallback for zone id injection (we need a way to pass this)
+        // Since it's a static file, we will let index.js replace these placeholders
     </script>
 </body>
 </html>

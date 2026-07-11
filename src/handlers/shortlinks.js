@@ -1,35 +1,95 @@
 const config = require('../config/config');
+const db = require('../services/db');
+const creditService = require('../services/creditService');
 const axios = require('axios');
+const crypto = require('crypto');
 
 module.exports = (bot) => {
-    bot.action(/^sl_(.*)$/, async (ctx) => {
-        ctx.answerCbQuery().catch(() => {});
+    // When user clicks "Verification" button from Unlock Page
+    bot.action(/^short_(.*)$/, async (ctx) => {
         const fileCode = ctx.match[1];
-        const apiKey = config.monetization.gplinksApiKey;
+        const userId = ctx.from.id;
+        const apiKey = config.shortlinkApiKey;
 
-        const returnLink = `https://t.me/${config.botUsername}?start=verify_${fileCode}`;
+        if (!apiKey) return ctx.answerCbQuery("⚠️ Shortlink API not configured!", { show_alert: true });
 
         try {
-            const res = await axios.get(`https://gplinks.in/api?api=${apiKey}&url=${encodeURIComponent(returnLink)}`);
-            if (res.data.shortenedUrl) {
+            // 1. Generate unique session ID
+            const sessionId = crypto.randomBytes(8).toString('hex').toUpperCase();
+
+            // 2. Create session in DB
+            await db.createVerificationSession(sessionId, userId);
+
+            // 3. Generate UrlShortX link
+            // Redirects to bot start with 'v_<sessionId>' payload
+            const botLink = `https://t.me/${config.botUsername}?start=v_${sessionId}`;
+            const apiResp = await axios.get(`https://urlshortx.com/api?api=${apiKey}&url=${encodeURIComponent(botLink)}`);
+
+            if (apiResp.data.status === 'success' || apiResp.data.shortenedUrl) {
+                const shortUrl = apiResp.data.shortenedUrl || apiResp.data.url;
+
                 const text = `🔗 *Verification Required*\n\n` +
-                             `Complete this task to earn *${config.credits.perVerification} Credits*.\n\n` +
-                             `⚠️ Credits are only added after reaching the final destination.`;
+                             `Complete this verification successfully to earn credits.\n` +
+                             `Credits are awarded only after successful completion.\n\n` +
+                             `⚠️ *Note:* Don't close the browser until you return to the bot.`;
 
                 const kb = [
-                    [{ text: '🔓 Open Verification', url: res.data.shortenedUrl }],
-                    [{ text: '🔙 Back', callback_data: `file_${fileCode}` }]
+                    [{ text: '🔓 Open Verification', url: shortUrl }],
+                    [{ text: '✅ Verify Status', callback_data: `verify_${sessionId}_${fileCode}` }],
+                    [{ text: '🔙 Cancel', callback_data: 'main' }]
                 ];
 
                 await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+            } else {
+                throw new Error("Shortlink API Failed");
             }
         } catch (e) {
-            await ctx.answerCbQuery('❌ API Error. Try Ads.', { show_alert: true });
+            console.error(e);
+            ctx.answerCbQuery("❌ Error generating link. Try again.", { show_alert: true });
         }
     });
 
-    bot.action('shortlink', (ctx) => {
-        ctx.answerCbQuery().catch(() => {});
-        return bot.handleUpdate({ callback_query: { data: 'sl_direct', from: ctx.from, message: ctx.callbackQuery.message } });
+    // When user clicks "✅ Verify Status" button
+    bot.action(/^verify_(.*)_(.*)$/, async (ctx) => {
+        const sessionId = ctx.match[1];
+        const fileCode = ctx.match[2];
+        const userId = ctx.from.id;
+
+        try {
+            const session = await db.getSession(sessionId);
+
+            if (!session) return ctx.answerCbQuery("❌ Session not found.", { show_alert: true });
+
+            // Check expiry
+            const now = new Date();
+            const expires = session.expiresAt.toDate ? session.expiresAt.toDate() : new Date(session.expiresAt);
+            if (now > expires) return ctx.answerCbQuery("❌ Verification session expired. Please restart.", { show_alert: true });
+
+            if (session.status === true) {
+                // Check if already rewarded (prevent duplicate rewards)
+                if (session.rewarded) return ctx.answerCbQuery("✅ Credits already added!");
+
+                const settings = await db.getGlobalSettings();
+                await creditService.addCredits(userId, settings.rewardVerification);
+
+                // Mark as rewarded
+                await db.collection('sessions').doc(sessionId).update({ rewarded: true });
+
+                await ctx.reply(`✅ *Verification successful.*\n🎉 Credits added successfully.`, { parse_mode: 'Markdown' });
+
+                // Redirect back to Download page
+                // If it's a direct earn (no file code), go to main menu
+                if (fileCode === 'direct') {
+                    return bot.handleUpdate({ message: { text: '/start', from: ctx.from, chat: ctx.chat, date: Date.now()/1000 }, update_id: 0 });
+                } else {
+                    return bot.handleUpdate({ message: { text: `/start ${fileCode}`, from: ctx.from, chat: ctx.chat, date: Date.now()/1000 }, update_id: 0 });
+                }
+            } else {
+                await ctx.answerCbQuery("❌ Verification not completed.\nPlease complete the verification first.", { show_alert: true });
+            }
+        } catch (e) {
+            console.error(e);
+            ctx.answerCbQuery("❌ Verification failed.");
+        }
     });
 };

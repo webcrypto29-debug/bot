@@ -1,36 +1,23 @@
-const { adminCheck } = require('../middlewares/auth');
-const fileService = require('../services/fileService');
-const { getFileFromMsg } = require('../utils/helpers');
+const db = require('../services/db');
 const config = require('../config/config');
+const { v4: uuidv4 } = require('uuid'); // Install uuid via npm later
 
 module.exports = (bot) => {
-    bot.on(['document', 'video', 'photo', 'audio', 'voice', 'animation'], adminCheck, async (ctx) => {
-        try {
-            const fileInfo = getFileFromMsg(ctx.message);
-            if (!fileInfo) return;
+    // Single File Link Generator (Forward from Storage)
+    bot.on(['document', 'video', 'photo', 'audio'], async (ctx) => {
+        if (!config.adminIds.includes(ctx.from.id)) return;
 
-            const code = await fileService.generateLink({
-                fileId: fileInfo.fileId,
-                fileType: fileInfo.type,
-                caption: ctx.message.caption || 'No Caption',
-                createdBy: ctx.from.id,
-                isBatch: false
-            });
+        // Ensure it's forwarded
+        if (!ctx.message.forward_from_chat) return ctx.reply('⚠️ Please forward a file from your storage channel.');
 
-            const link = `https://t.me/${config.botUsername}?start=${code}`;
-            const text = `✅ *Link Generated Successfully!*\n\n` +
-                         `📂 *File:* ${ctx.message.caption || 'No Title'}\n` +
-                         `🔗 *Link:* \`${link}\`\n\n` +
-                         `Users will need *1 Credit* to unlock this file. They can earn credits by watching ads or completing verification.`;
+        const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+        await db.saveFile(code, {
+            messageId: ctx.message.forward_from_message_id,
+            caption: ctx.message.caption || '',
+            type: ctx.message.document ? 'doc' : 'vid'
+        });
 
-            const kb = [
-                [{ text: '📤 Share Link', url: `https://t.me/share/url?url=${encodeURIComponent(link)}` }],
-                [{ text: '🔗 Open Link', url: link }]
-            ];
-
-            await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
-        } catch (error) {
-            await ctx.reply('❌ Database Error. Check Firebase connection.');
-        }
+        const link = `https://t.me/${config.botUsername}?start=${code}`;
+        ctx.reply(`✅ *Link Created*\n\n🔗 \`${link}\``, { parse_mode: 'Markdown' });
     });
 };

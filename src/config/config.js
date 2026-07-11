@@ -1,58 +1,39 @@
+require('dotenv').config();
 const path = require('path');
 
-/**
- * Production-ready Configuration for Erica File Bot
- */
 const config = {
-    botName: process.env.BOT_NAME || "Erica File Bot",
-    botUsername: process.env.BOT_USERNAME || "Ericafilebot",
+    // Basic Telegram
     botToken: process.env.BOT_TOKEN,
+    botUsername: process.env.BOT_USERNAME,
     adminIds: process.env.ADMIN_ID ? process.env.ADMIN_ID.split(',').map(id => parseInt(id.trim())) : [],
 
+    // API Details
+    apiId: process.env.API_ID,
+    apiHash: process.env.API_HASH,
+
+    // Firebase
     firebase: {
-        projectId: process.env.FIREBASE_PROJECT_ID || "ericafilebot",
-        serviceAccountPath: path.resolve(process.cwd(), 'serviceAccountKey.json'),
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        keyPath: path.resolve(process.cwd(), 'serviceAccountKey.json')
     },
 
+    // Storage
     storageChannel: process.env.STORAGE_CHANNEL || "@database72783",
 
-    credits: {
-        perVerification: 7,
-        perAd: 3,           // Mini App Reward
-        perDirectLink: 2,   // Direct Link Reward
+    // Monetization
+    monetagZoneId: process.env.MONETAG_ZONE_ID, // Loaded from .env
+    baseUrl: process.env.BASE_URL,             // Loaded from .env (e.g. https://xyz.serveo.net)
+    shortlinkApiKey: process.env.URLSHORTX_API_KEY,
+
+    // Rewards & Cost
+    rewards: {
+        shortlink: 7,
+        adReward: 5,        // Credits given for one rewarded ad
         costPerDownload: 1
-    },
-
-    monetization: {
-        monetagZoneId: process.env.MONETAG_ZONE_ID || "11203254",
-        monetagUrl: process.env.MONETAG_URL || "https://omg10.com/4/11203254",
-        gplinksApiKey: process.env.GPLINKS_API_KEY || "a1166b18fb3aad8dae0bd12b1151fad22993c366",
-        miniAppUrl: process.env.MINI_APP_URL,
-    },
-
-    forceJoin: {
-        enabled: process.env.FORCE_JOIN_ENABLED === 'true',
-        channelId: process.env.CHANNEL_ID || "@EricaUpdates",
-        channelLink: process.env.CHANNEL_LINK || "https://t.me/EricaUpdates",
-    },
-
-    logLevel: process.env.LOG_LEVEL || 'info',
-
-    async loadDynamicSettings() {
-        try {
-            const dbService = require('../services/dbService');
-            const settings = await dbService.getSettings();
-            if (settings) {
-                if (settings.miniAppUrl) this.monetization.miniAppUrl = settings.miniAppUrl;
-                if (settings.rewardVerification) this.credits.perVerification = parseInt(settings.rewardVerification);
-                if (settings.rewardAd) this.credits.perAd = parseInt(settings.rewardAd);
-                if (settings.rewardDirect) this.credits.perDirectLink = parseInt(settings.rewardDirect);
-            }
-        } catch (error) {
-            console.error('Failed to load dynamic settings:', error.message);
-        }
     }
 };
 
-if (!config.botToken) throw new Error('BOT_TOKEN is missing in .env');
+if (!config.botToken) throw new Error("CRITICAL: BOT_TOKEN is missing in your .env file!");
+if (!config.monetagZoneId) console.warn("WARNING: MONETAG_ZONE_ID is missing in .env");
+
 module.exports = config;

@@ -1,58 +1,43 @@
 const config = require('../config/config');
-const dbService = require('../services/dbService');
-const deliveryService = require('../services/deliveryService');
-
-const activeTimers = new Map();
+const db = require('../services/db');
+const crypto = require('crypto');
 
 module.exports = (bot) => {
-    bot.action(/^ad_(.*)$/, async (ctx) => {
+    // When user clicks "📺 Watch Rewarded Ad" button from Unlock Page
+    bot.action(/^watch_(.*)$/, async (ctx) => {
         const fileCode = ctx.match[1];
         const userId = ctx.from.id;
-        const baseUrl = config.monetization.miniAppUrl;
+        const baseUrl = config.baseUrl;
 
-        // Start 15s timer
-        activeTimers.set(userId, Date.now());
+        if (!baseUrl) return ctx.answerCbQuery("⚠️ BASE_URL not set in .env!", { show_alert: true });
+        if (!config.monetagZoneId) return ctx.answerCbQuery("⚠️ MONETAG_ZONE_ID not set!", { show_alert: true });
 
-        const text = `📺 *Select Ad Type to Earn*\n\n` +
-                     `1️⃣ *Watch Ad (Mini App):* Earn *3 Credits*\n` +
-                     `2️⃣ *Direct Link (Browser):* Earn *2 Credits*\n\n` +
-                     `⏳ *Note:* You must watch for 15 seconds before you can Verify.`;
+        try {
+            // 1. Generate unique session ID
+            const sessionId = crypto.randomBytes(8).toString('hex').toUpperCase();
 
-        const kb = [
-            [{ text: '💎 Watch Ad Now (3 Cr)', web_app: { url: `${baseUrl}/ad?file=${fileCode}` } }],
-            [{ text: '🔗 Direct Link (2 Cr)', url: config.monetization.monetagUrl }],
-            [{ text: '⏱ Verify & Get Credits', callback_data: `verifyad_${fileCode}` }],
-            [{ text: '🔙 Back', callback_data: `file_${fileCode}` }]
-        ];
-        if (!baseUrl) kb.shift();
+            // 2. Create session in DB
+            await db.createAdSession(sessionId, userId);
 
-        await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
-    });
+            // 3. Construct the Web App / Page URL
+            // Using /ad endpoint defined in index.js
+            const adUrl = `${baseUrl}/ad?session=${sessionId}&file=${fileCode}`;
 
-    bot.action(/^verifyad_(.*)$/, async (ctx) => {
-        const fileCode = ctx.match[1];
-        const userId = ctx.from.id;
-        const startTime = activeTimers.get(userId);
+            const text = `📺 *Rewarded Advertisement*\n\n` +
+                         `Watch the complete advertisement to earn Credits.\n` +
+                         `Leaving early will NOT earn any Credits.\n\n` +
+                         `⚠️ *Note:* Click the button below to start the ad.`;
 
-        if (!startTime) return ctx.answerCbQuery('❌ Click an ad first!', { show_alert: true });
+            const kb = [
+                [{ text: '▶️ Watch Ad Now', web_app: { url: adUrl } }],
+                [{ text: '🔙 Cancel', callback_data: 'main' }]
+            ];
 
-        const elapsed = (Date.now() - startTime) / 1000;
-        if (elapsed < 15) {
-            const rem = Math.ceil(15 - elapsed);
-            return ctx.answerCbQuery(`❌ Wait ${rem}s more!`, { show_alert: true });
-        }
+            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
 
-        // Grant 2 Credits for Manual Verification
-        await dbService.addCredits(userId, 2);
-        activeTimers.delete(userId);
-        await ctx.reply('✅ *Ad Verified! +2 Credits added.*');
-
-        if (fileCode !== 'direct') {
-            const user = await dbService.getUser(userId);
-            if (user.credits >= 1) {
-                const delivered = await deliveryService.deliverFile(ctx, fileCode, userId);
-                if (delivered) await dbService.deductCredit(userId);
-            }
+        } catch (e) {
+            console.error(e);
+            ctx.answerCbQuery("❌ Error initializing ad.");
         }
     });
 };
