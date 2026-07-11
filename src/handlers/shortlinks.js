@@ -73,7 +73,7 @@ module.exports = (bot) => {
                 await creditService.addCredits(userId, settings.rewardVerification);
 
                 // Mark as rewarded
-                await db.collection('sessions').doc(sessionId).update({ rewarded: true });
+                await db.updateSession(sessionId, { rewarded: true });
 
                 await ctx.reply(`✅ *Verification successful.*\n🎉 Credits added successfully.`, { parse_mode: 'Markdown' });
 

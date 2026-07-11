@@ -8,13 +8,22 @@ const bot = new Telegraf(config.botToken);
 const app = express();
 
 // Modular Handlers
-const handlers = ['user', 'admin', 'ads', 'shortlinks'];
+const handlers = ['user', 'admin', 'ads', 'shortlinks', 'payments'];
 handlers.forEach(h => {
     try {
-        require(`./handlers/${h}`)(bot);
+        const handlerPath = `./handlers/${h}`;
+        if (fs.existsSync(path.join(__dirname, 'handlers', `${h}.js`))) {
+            require(handlerPath)(bot);
+        }
     } catch (e) {
-        console.error(`Error loading ${h} handler:`, e.message);
+        console.error(`Error loading ${h} handler:`, e.stack);
     }
+});
+
+// Global Error Handler for Telegraf
+bot.catch((err, ctx) => {
+    console.error(`Ooops, encountered an error for ${ctx.updateType}`, err);
+    ctx.reply('❌ An unexpected error occurred. Please try again later.').catch(() => {});
 });
 
 // Rewarded Ad Route with Dynamic Placeholder Replacement

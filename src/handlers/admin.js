@@ -23,6 +23,7 @@ module.exports = (bot) => {
             [{ text: '📁 Generate Link', callback_data: 'admin_gen_link' }, { text: '📦 Generate Batch', callback_data: 'admin_gen_batch' }],
             [{ text: '📢 Broadcast', callback_data: 'admin_broadcast' }],
             [{ text: '📊 Statistics', callback_data: 'admin_stats' }, { text: '⚙️ Settings', callback_data: 'admin_settings' }],
+            [{ text: '💳 Pending Payments', callback_data: 'admin_payments' }],
             [{ text: '🔙 Back to User Menu', callback_data: 'main' }]
         ];
 
@@ -44,23 +45,81 @@ module.exports = (bot) => {
         await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '🔙 Back', callback_data: 'admin' }]] } });
     });
 
-    // --- Settings ---
     bot.action('admin_settings', adminCheck, async (ctx) => {
-        const settings = await db.getGlobalSettings();
-        const text = `⚙️ *Bot Settings*\n\n` +
-                     `🔗 Verify Reward: \`${settings.rewardVerification} Credits\`\n` +
-                     `📺 Ad Reward: \`${settings.rewardAd} Credits\`\n` +
-                     `📥 Download Cost: \`${settings.downloadCost} Credits\`\n\n` +
-                     `*Click a button below to edit:*`;
+        try {
+            const settings = await db.getGlobalSettings();
+            const text = `⚙️ *Bot Settings*\n\n` +
+                         `🔗 Verify Reward: \`${settings.rewardVerification} Credits\`\n` +
+                         `📺 Ad Reward: \`${settings.rewardAd} Credits\`\n` +
+                         `📥 Download Cost: \`${settings.downloadCost} Credits\`\n\n` +
+                         `*Click a button below to edit:*`;
 
-        const kb = [
-            [{ text: '✏️ Edit Verify Reward', callback_data: 'set_reward_verify' }],
-            [{ text: '✏️ Edit Ad Reward', callback_data: 'set_reward_ad' }],
-            [{ text: '✏️ Edit Download Cost', callback_data: 'set_download_cost' }],
-            [{ text: '🔙 Back', callback_data: 'admin' }]
-        ];
+            const kb = [
+                [{ text: '✏️ Edit Verify Reward', callback_data: 'set_reward_verify' }],
+                [{ text: '✏️ Edit Ad Reward', callback_data: 'set_reward_ad' }],
+                [{ text: '✏️ Edit Download Cost', callback_data: 'set_download_cost' }],
+                [{ text: '🔙 Back', callback_data: 'admin' }]
+            ];
 
-        await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+        } catch (e) {
+            console.error("Settings menu error:", e);
+        }
+    });
+
+    bot.action('admin_payments', adminCheck, async (ctx) => {
+        try {
+            const payments = await db.getPendingPayments();
+            if (payments.length === 0) {
+                return ctx.editMessageText("✅ No pending payments.", { reply_markup: { inline_keyboard: [[{ text: '🔙 Back', callback_data: 'admin' }]] } });
+            }
+
+            const p = payments[0]; // Process one by one for simplicity
+            const text = `💳 *Pending Payment*\n\n` +
+                         `👤 User: ${p.userName} (\`${p.userId}\`)\n` +
+                         `💎 Plan: ${p.plan}\n` +
+                         `💵 Amount: ₹${p.amount}\n` +
+                         `🆔 Trans ID: \`${p.transactionId}\`\n` +
+                         `📅 Date: ${p.createdAt.toDate ? p.createdAt.toDate().toLocaleString() : new Date(p.createdAt).toLocaleString()}`;
+
+            const kb = [
+                [{ text: '✅ Approve', callback_data: `approve_pay_${p.id}` }, { text: '❌ Decline', callback_data: `decline_pay_${p.id}` }],
+                [{ text: '🔙 Back', callback_data: 'admin' }]
+            ];
+            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+        } catch (e) {
+            console.error("Admin payments error:", e);
+        }
+    });
+
+    bot.action(/^approve_pay_(.*)$/, adminCheck, async (ctx) => {
+        try {
+            const payId = ctx.match[1];
+            const p = await db.getPayment(payId);
+            if (!p) return ctx.answerCbQuery("❌ Payment not found.");
+
+            await db.approvePayment(payId);
+
+            // Notification to user
+            bot.telegram.sendMessage(p.userId, `🎉 *Payment Approved!*\n\nYour *${p.plan} VIP* status is now active. Enjoy!`, { parse_mode: 'Markdown' }).catch(() => {});
+
+            ctx.answerCbQuery("✅ Payment Approved!");
+            return showAdminPanel(ctx, true);
+        } catch (e) {
+            console.error("Approve payment error:", e);
+            ctx.answerCbQuery("❌ Error approving payment.");
+        }
+    });
+
+    bot.action(/^decline_pay_(.*)$/, adminCheck, async (ctx) => {
+        try {
+            const payId = ctx.match[1];
+            await db.updatePayment(payId, { status: 'declined', declinedAt: new Date() });
+            ctx.answerCbQuery("❌ Payment Declined.");
+            return showAdminPanel(ctx, true);
+        } catch (e) {
+            console.error("Decline payment error:", e);
+        }
     });
 
     // Setting update handlers
@@ -161,6 +220,7 @@ module.exports = (bot) => {
             file_id: file.file_id,
             file_name: file.file_name || msg.caption || 'Unnamed File',
             file_size: file.file_size || 0,
+            file_type: msg.document ? 'doc' : (msg.video ? 'vid' : (msg.audio ? 'aud' : (msg.photo ? 'img' : 'doc'))),
             upload_time: new Date(),
             messageId: msg.message_id,
             caption: msg.caption || ''

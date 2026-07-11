@@ -1,4 +1,4 @@
-const dbService = require('../services/dbService');
+const db = require('../services/db');
 const config = require('../config/config');
 const logger = require('../utils/logger');
 
@@ -107,7 +107,7 @@ module.exports = (bot) => {
 
         try {
             // Duplicate Check
-            const existing = await dbService.getPaymentByTransactionId(transactionId);
+            const existing = await db.getPaymentByTransactionId(transactionId);
             if (existing) {
                 return ctx.reply('⚠️ This Transaction ID has already been used. Contact support if this is an error.');
             }
@@ -116,7 +116,7 @@ module.exports = (bot) => {
             const amount = state.plan === 'Monthly' ? config.vip.monthly : config.vip.yearly;
 
             // Save to DB
-            await dbService.savePayment(payId, {
+            await db.savePayment(payId, {
                 userId: ctx.from.id,
                 userName: ctx.from.first_name,
                 plan: state.plan,

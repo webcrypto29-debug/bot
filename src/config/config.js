@@ -14,21 +14,38 @@ const config = {
     // Firebase
     firebase: {
         projectId: process.env.FIREBASE_PROJECT_ID,
-        keyPath: path.resolve(process.cwd(), 'serviceAccountKey.json')
+        keyPath: path.resolve(process.cwd(), 'serviceAccountKey.json'),
+        serviceAccountPath: path.resolve(process.cwd(), 'serviceAccountKey.json')
     },
 
     // Storage
     storageChannel: process.env.STORAGE_CHANNEL || "@database72783",
+
+    // Force Join
+    forceJoinChannel: process.env.FORCE_JOIN_CHANNEL,
+    forceJoinLink: process.env.CHANNEL_LINK,
 
     // Monetization
     monetagZoneId: process.env.MONETAG_ZONE_ID, // Loaded from .env
     baseUrl: process.env.BASE_URL,             // Loaded from .env (e.g. https://xyz.serveo.net)
     shortlinkApiKey: process.env.URLSHORTX_API_KEY,
 
+    // VIP Pricing
+    vip: {
+        monthly: parseInt(process.env.VIP_MONTHLY) || 29,
+        yearly: parseInt(process.env.VIP_YEARLY) || 299
+    },
+
+    // Payments
+    payment: {
+        upiId: process.env.UPI_ID,
+        paypalEmail: process.env.PAYPAL_EMAIL
+    },
+
     // Rewards & Cost
     rewards: {
         shortlink: 7,
-        adReward: 5,        // Credits given for one rewarded ad
+        adReward: 3,        // Credits given for one rewarded ad
         costPerDownload: 1
     }
 };

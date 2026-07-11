@@ -3,140 +3,204 @@ const db = require('../services/db');
 const creditService = require('../services/creditService');
 
 module.exports = (bot) => {
-    const showMenu = async (ctx, isEdit = false) => {
+    // Helper to check channel membership
+    const checkMembership = async (ctx, userId) => {
+        if (config.adminIds.includes(userId)) return true;
+        if (!config.forceJoinChannel) return true;
+        try {
+            const member = await ctx.telegram.getChatMember(config.forceJoinChannel, userId);
+            const allowed = ['member', 'administrator', 'creator'];
+            return allowed.includes(member.status);
+        } catch (e) {
+            return true; // Bypass if bot is not admin or channel not found
+        }
+    };
+
+    // Helper to send file by ID and Type (Zero storage consumption)
+    const sendFile = async (ctx, file) => {
+        const opts = { caption: file.caption || '', parse_mode: 'Markdown' };
+        try {
+            if (file.file_type === 'vid') await ctx.replyWithVideo(file.file_id, opts);
+            else if (file.file_type === 'aud') await ctx.replyWithAudio(file.file_id, opts);
+            else if (file.file_type === 'img') await ctx.replyWithPhoto(file.file_id, opts);
+            else await ctx.replyWithDocument(file.file_id, opts);
+            return true;
+        } catch (e) {
+            console.error("Delivery error:", e.message);
+            return false;
+        }
+    };
+
+    const showDownloadPage = async (ctx, payload) => {
+        const file = await db.getFile(payload);
+        if (!file) return ctx.reply("❌ Invalid link.");
+
         const userId = ctx.from.id;
         const user = await db.getUser(userId) || { credits: 0 };
+        const settings = await db.getGlobalSettings();
         const isAdmin = config.adminIds.includes(userId);
 
-        const text = `👋 *Welcome to ${config.botUsername}*\n\n` +
-                     `💰 *Balance:* \`${user.credits} Credits\`\n` +
-                     `🆔 *ID:* \`${userId}\``;
+        let text = file.isBatch ? `📦 *Batch Ready*\n\n` : `📁 *File Ready*\n\n`;
+        if (file.isBatch) {
+            const totalSize = file.files.reduce((acc, f) => acc + (f.file_size || 0), 0);
+            text += `📑 *Total Files:* \`${file.files.length}\`\n⚖️ *Total Size:* \`${(totalSize / (1024 * 1024)).toFixed(2)} MB\``;
+        } else {
+            text += `📛 *Name:* \`${file.file_name}\`\n⚖️ *Size:* \`${(file.file_size / (1024 * 1024)).toFixed(2)} MB\``;
+        }
+        text += `\n\n💰 *Your Credits:* \`${user.credits}\`\n📥 *Download Cost:* \`${settings.downloadCost} Credits\``;
 
-        const kb = [[{ text: '👤 My Profile', callback_data: 'profile' }]];
-        if (isAdmin) kb.unshift([{ text: '🛠 Admin Dashboard', callback_data: 'admin' }]);
+        const kb = [[{ text: (user.credits >= settings.downloadCost || isAdmin) ? '⬇️ Download Now' : '💎 Earn Credits', callback_data: `dl_${payload}` }]];
+        kb.push([{ text: '🔙 Back', callback_data: 'main' }]);
 
-        if (isEdit) return ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } }).catch(() => {});
         return ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
     };
 
     bot.start(async (ctx) => {
-        const payload = ctx.payload;
-        const userId = ctx.from.id;
+        try {
+            const payload = ctx.payload;
+            const userId = ctx.from.id;
+            if (!(await db.getUser(userId))) await db.createUser(userId, { name: ctx.from.first_name });
 
-        // Register user if not exists
-        if (!(await db.getUser(userId))) {
-            await db.createUser(userId, { name: ctx.from.first_name });
-        }
+            // Handle Rewards from Shortlink/Ad
+            if (payload && (payload.startsWith('reward_') || payload.startsWith('v_'))) {
+                const parts = payload.split('_');
+                const type = parts[0]; // 'reward' or 'v'
+                const sessionId = parts[1];
+                const fileCode = parts[2] || 'direct';
 
-        // --- Handle Rewarded Ad Success ---
-        if (payload && payload.startsWith('reward_')) {
-            const parts = payload.split('_');
-            const sessionId = parts[1];
-            const fileCode = parts[2];
-
-            try {
-                const session = await db.getAdSession(sessionId);
-                if (!session) return ctx.reply("❌ Reward session invalid.");
-                if (session.rewarded) return ctx.reply("✅ Credits already added!");
-
-                // Expiry Check
-                const now = new Date();
-                const expires = session.expiresAt.toDate ? session.expiresAt.toDate() : new Date(session.expiresAt);
-                if (now > expires) return ctx.reply("❌ Session expired. Please watch ad again.");
-
-                const settings = await db.getGlobalSettings();
-                await creditService.addCredits(userId, settings.rewardAd);
-                await db.completeAdSession(sessionId);
-
-                await ctx.reply(`✅ *Reward completed.*\n🎉 You earned ${settings.rewardAd} Credits.`, { parse_mode: 'Markdown' });
-
-                // Redirect back to File Page
-                if (fileCode === 'direct') {
-                    return showMenu(ctx);
-                } else {
-                    return bot.handleUpdate({ message: { text: `/start ${fileCode}`, from: ctx.from, chat: ctx.chat, date: Date.now()/1000 }, update_id: 0 });
+                if (type === 'v') {
+                    const session = await db.getSession(sessionId);
+                    if (session && !session.rewarded) {
+                        const settings = await db.getGlobalSettings();
+                        await creditService.addCredits(userId, settings.rewardVerification);
+                        await db.updateSession(sessionId, { rewarded: true, status: true });
+                        await ctx.reply(`✅ *Verification Success!*\n\nCredits added.`, { parse_mode: 'Markdown' });
+                        if (fileCode !== 'direct') return showDownloadPage(ctx, fileCode);
+                    }
+                } else if (type === 'reward') {
+                    try {
+                        const result = await db.claimBloggerReward(sessionId, userId);
+                        if (result.success) {
+                            await ctx.reply(`✅ *Reward verified successfully.*\n\n🎉 Credits added.`, { parse_mode: 'Markdown' });
+                            if (fileCode !== 'direct') return showDownloadPage(ctx, fileCode);
+                        }
+                    } catch (e) {
+                        if (['SESSION_NOT_FOUND', 'SESSION_EXPIRED', 'ALREADY_REWARDED'].includes(e.message)) {
+                            await ctx.reply(`❌ Invalid or expired reward session.`);
+                        } else {
+                            console.error("Reward error:", e);
+                            await ctx.reply(`❌ An error occurred while verifying reward.`);
+                        }
+                    }
                 }
-            } catch (e) { console.error(e); }
-            return;
-        }
-
-        // --- Handle Verification Success ---
-        if (payload && payload.startsWith('v_')) {
-            const sessionId = payload.split('_')[1];
-            const session = await db.getSession(sessionId);
-            if (session && session.userId === userId.toString()) {
-                await db.collection('sessions').doc(sessionId).update({ status: true });
-                return ctx.reply("✅ *Verification step completed!*\nNow go back to the previous message and click 'Verify Status'.", { parse_mode: 'Markdown' });
+                return;
             }
-        }
 
-        // --- Handle File Links ---
-        if (payload) {
-            const file = await db.getFile(payload);
-            if (!file) return ctx.reply("❌ Invalid or expired link.");
+            if (payload) {
+                const isMember = await checkMembership(ctx, userId);
+                if (!isMember) {
+                    return ctx.reply(`🚫 You must join our channel before downloading.`, {
+                        reply_markup: {
+                            inline_keyboard: [
+                                [{ text: '📢 Join Channel', url: config.forceJoinLink }],
+                                [{ text: '✅ Check Again', callback_data: `verify_fj_${payload}` }]
+                            ]
+                        }
+                    });
+                }
+                return showDownloadPage(ctx, payload);
+            }
 
+            // Show Main Menu
             const user = await db.getUser(userId) || { credits: 0 };
+            const text = `👋 *Welcome to ${config.botUsername}*\n\n💰 *Balance:* \`${user.credits} Credits\``;
+            const kb = [[{ text: '👤 My Profile', callback_data: 'profile' }]];
+            if (config.adminIds.includes(userId)) kb.unshift([{ text: '🛠 Admin Panel', callback_data: 'admin' }]);
+            return ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+        } catch (e) {
+            console.error("Start command error:", e);
+        }
+    });
+
+    bot.action(/^verify_fj_(.*)$/, async (ctx) => {
+        try {
+            const payload = ctx.match[1];
+            const isMember = await checkMembership(ctx, ctx.from.id);
+
+            if (!isMember) {
+                return ctx.answerCbQuery("🚫 You still haven't joined!", { show_alert: true });
+            }
+
+            await ctx.answerCbQuery("✅ Thank you for joining!");
+            await ctx.deleteMessage();
+
+            return showDownloadPage(ctx, payload);
+        } catch (e) {
+            console.error("FJ verify error:", e);
+        }
+    });
+
+    bot.action(/^dl_(.*)$/, async (ctx) => {
+        try {
+            const code = ctx.match[1];
+            const userId = ctx.from.id;
             const isAdmin = config.adminIds.includes(userId);
             const settings = await db.getGlobalSettings();
 
-            const date = file.createdAt.toDate ? file.createdAt.toDate().toLocaleDateString() : new Date(file.createdAt).toLocaleDateString();
-            const size = (file.file_size / (1024 * 1024)).toFixed(2);
-
-            let text = `📁 *File Ready*\n\n` +
-                       `📛 *Name:* \`${file.file_name}\`\n` +
-                       `⚖️ *Size:* \`${size} MB\`\n` +
-                       `📅 *Date:* \`${date}\`\n\n` +
-                       `💰 *Your Credits:* \`${user.credits}\`\n` +
-                       `📥 *Download Cost:* \`${settings.downloadCost} Credits\``;
-
-            const kb = [];
-            if (user.credits >= settings.downloadCost || isAdmin) {
-                kb.push([{ text: '⬇️ Download File', callback_data: `dl_${payload}` }]);
-            } else {
-                text += `\n\n⚠️ *Insufficient Credits! Earn more:*`;
-                kb.push([{ text: `🔗 Verification (+${settings.rewardVerification})`, callback_data: `short_${payload}` }]);
-                kb.push([{ text: `📺 Watch Ad (+${settings.rewardAd})`, callback_data: `watch_${payload}` }]);
+            const user = await db.getUser(userId) || { credits: 0 };
+            if (user.credits < settings.downloadCost && !isAdmin) {
+                return ctx.answerCbQuery("❌ Insufficient Credits!", { show_alert: true });
             }
-            kb.push([{ text: '🔙 Back', callback_data: 'main' }]);
 
-            return ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+        const file = await db.getFile(code);
+        if (!file) return ctx.answerCbQuery("❌ File not found!");
+
+        await ctx.answerCbQuery("✅ Delivering directly from Telegram...");
+
+        let success = false;
+        if (file.isBatch) {
+            for (const f of file.files) await sendFile(ctx, f);
+            success = true;
+        } else {
+            success = await sendFile(ctx, file);
         }
 
-        return showMenu(ctx);
-    });
-
-    // Handle Download Action
-    bot.action(/^dl_(.*)$/, async (ctx) => {
-        const code = ctx.match[1];
-        const userId = ctx.from.id;
-        const isAdmin = config.adminIds.includes(userId);
-
-        try {
-            const settings = await db.getGlobalSettings();
-            const hasCredits = await creditService.hasEnoughCredits(userId, settings.downloadCost);
-
-            if (!hasCredits && !isAdmin) return ctx.answerCbQuery("❌ Insufficient Credits!", { show_alert: true });
-
-            const file = await db.getFile(code);
-            if (!file) return ctx.answerCbQuery("❌ File not found!");
-
-            if (!isAdmin) await creditService.spendCredits(userId, settings.downloadCost);
+        if (success && !isAdmin) {
+            await creditService.spendCredits(userId, settings.downloadCost);
             await db.recordDownload(userId, code);
+        }
+    } catch (e) {
+        console.error("Download action error:", e);
+        ctx.answerCbQuery("❌ Error processing download.");
+    }
+});
 
-            await ctx.answerCbQuery("✅ Preparing file...");
-            if (file.isBatch) {
-                for (const f of file.files) await ctx.replyWithDocument(f.file_id, { caption: f.caption }).catch(() => {});
-            } else {
-                await ctx.replyWithDocument(file.file_id, { caption: file.caption }).catch(() => {});
-            }
-        } catch (e) { ctx.answerCbQuery("❌ Download Failed."); }
+    bot.action('main', async (ctx) => {
+        try {
+            const user = await db.getUser(ctx.from.id) || { credits: 0 };
+            const text = `👋 *Welcome*\n\n💰 *Balance:* \`${user.credits} Credits\``;
+            const kb = [[{ text: '👤 My Profile', callback_data: 'profile' }]];
+            if (config.adminIds.includes(ctx.from.id)) kb.unshift([{ text: '🛠 Admin Panel', callback_data: 'admin' }]);
+            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+        } catch (e) {
+            console.error("Main menu error:", e);
+        }
     });
 
     bot.action('profile', async (ctx) => {
-        const user = await db.getUser(ctx.from.id);
-        const text = `👤 *Your Profile*\n\n💰 *Balance:* \`${user.credits || 0}\`\n📈 *Earned:* \`${user.totalEarned || 0}\`\n📉 *Spent:* \`${user.totalSpent || 0}\``;
-        await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '🔙 Back', callback_data: 'main' }]] } });
-    });
+        try {
+            const user = await db.getUser(ctx.from.id) || { credits: 0 };
+            const text = `👤 *Your Profile*\n\n` +
+                         `🆔 ID: \`${ctx.from.id}\`\n` +
+                         `💰 Credits: \`${user.credits}\`\n` +
+                         `📈 Total Earned: \`${user.totalEarned || 0}\`\n` +
+                         `📉 Total Spent: \`${user.totalSpent || 0}\`\n` +
+                         `✨ Status: \`${user.status || 'Active'}\``;
 
-    bot.action('main', (ctx) => showMenu(ctx, true));
+            const kb = [[{ text: '💎 Get VIP', callback_data: 'get_vip' }], [{ text: '🔙 Back', callback_data: 'main' }]];
+            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+        } catch (e) {
+            console.error("Profile error:", e);
+        }
+    });
 };
