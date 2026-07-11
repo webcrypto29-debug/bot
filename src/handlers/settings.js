@@ -5,7 +5,6 @@ module.exports = (bot) => {
     bot.action('admin_settings', adminCheck, async (ctx) => {
         ctx.answerCbQuery().catch(() => {});
         const text = `⚙️ *Bot Settings*\n\n` +
-                     `Current Configuration:\n` +
                      `- Credits per Ad: \`${config.credits.perAd}\`\n` +
                      `- Credits per Verify: \`${config.credits.perVerification}\`\n` +
                      `- Force Join: \`${config.forceJoin.enabled ? 'ON' : 'OFF'}\``;
@@ -23,6 +22,7 @@ module.exports = (bot) => {
     bot.action('admin_refresh_config', adminCheck, async (ctx) => {
         await config.loadDynamicSettings();
         ctx.answerCbQuery('✅ Settings Refreshed', { show_alert: true });
+        // Refresh the settings page
         return bot.handleUpdate({ callback_query: { data: 'admin_settings', from: ctx.from, message: ctx.callbackQuery.message } });
     });
 };

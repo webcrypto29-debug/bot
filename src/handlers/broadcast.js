@@ -9,6 +9,5 @@ module.exports = (bot) => {
                 inline_keyboard: [[{ text: '🔙 Cancel', callback_data: 'admin_panel_start' }]]
             }
         });
-        // You can add state-based listener here later
     });
 };

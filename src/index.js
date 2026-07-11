@@ -20,8 +20,8 @@ async function bootstrap() {
         bot.use(rateLimit);
         bot.use(userRegistration);
 
-        // Feature Modules
-        const modules = ['user', 'admin', 'ads', 'shortlinks', 'payments', 'forcejoin', 'links'];
+        // Feature Modules - REGISTER ALL HANDLERS HERE
+        const modules = ['user', 'admin', 'ads', 'shortlinks', 'payments', 'forcejoin', 'links', 'broadcast', 'settings'];
         modules.forEach(m => {
             try {
                 require(`./handlers/${m}`)(bot);
@@ -36,7 +36,6 @@ async function bootstrap() {
         });
 
         // Express Server for Ads/Health
-        // Using path.join with process.cwd() for cross-platform stability
         const publicPath = path.join(process.cwd(), 'src', 'public');
         app.use(express.static(publicPath));
 
