@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Erica Bot Reward</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Monetag SDK with your Zone ID -->
+    <script src='https://libtl.com/sdk.js' data-zone='11248744' data-sdk='show_11248744'></script>
+    <style>
+        body { background: #0f0f0f; color: #fff; text-align: center; font-family: sans-serif; padding-top: 80px; }
+        .btn { background: #0088cc; color: #fff; border: none; padding: 18px 36px; border-radius: 15px; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .status { margin-top: 30px; color: #888; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h2>🎁 Rewarded Ad</h2>
+    <p>Complete the ad to earn **3 Credits**.</p>
+
+    <button class="btn" id="startBtn">▶ WATCH AD NOW</button>
+    <div id="status" class="status">Waiting for SDK...</div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        document.getElementById('startBtn').onclick = function() {
+            this.style.display = 'none';
+            document.getElementById('status').innerText = "Ad is loading... Please wait 5-10 seconds.";
+
+            // Debugging check
+            if (typeof show_11248744 === 'function') {
+                show_11248744().then(() => {
+                    document.getElementById('status').innerText = "✅ Success! Getting your reward...";
+                    // Redirect to bot with success token
+                    setTimeout(() => {
+                        window.location.href = "https://t.me/Ericafilebot?start=ad_success_reward";
+                    }, 1000);
+                }).catch(e => {
+                    console.error(e);
+                    document.getElementById('status').innerText = "❌ Ad failed to load. Please close and use Direct Link.";
+                    document.getElementById('startBtn').style.display = 'block';
+                });
+            } else {
+                alert("Ad System (SDK) is not ready yet. This happens if you have an AdBlocker or your Network is blocking Monetag. Try using a VPN!");
+                location.reload();
+            }
+        };
+    </script>
+</body>
+</html>
