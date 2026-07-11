@@ -2,34 +2,34 @@ const config = require('../config/config');
 const axios = require('axios');
 
 module.exports = (bot) => {
-    // Handler for "Verification" button (Shortlink)
     bot.action(/^sl_(.*)$/, async (ctx) => {
+        ctx.answerCbQuery().catch(() => {});
         const fileCode = ctx.match[1];
-        const userId = ctx.from.id;
         const apiKey = config.monetization.gplinksApiKey;
 
-        // Link to return to bot with reward payload
         const returnLink = `https://t.me/${config.botUsername}?start=verify_${fileCode}`;
 
         try {
             const res = await axios.get(`https://gplinks.in/api?api=${apiKey}&url=${encodeURIComponent(returnLink)}`);
             if (res.data.shortenedUrl) {
-                await ctx.answerCbQuery('🔗 Verification Link Generated');
                 const text = `🔗 *Verification Required*\n\n` +
-                             `Complete this verification to earn *${config.credits.perVerification} Credit* and unlock your content.\n\n` +
-                             `⚠️ *Note:* You must reach the final page to receive the credit.`;
+                             `Complete this task to earn *${config.credits.perVerification} Credits*.\n\n` +
+                             `⚠️ Credits are only added after reaching the final destination.`;
 
                 const kb = [
                     [{ text: '🔓 Open Verification', url: res.data.shortenedUrl }],
-                    [{ text: '🔄 Try Again', callback_data: `sl_${fileCode}` }],
-                    [{ text: '🔙 Back', callback_data: 'earn_options' }]
+                    [{ text: '🔙 Back', callback_data: `file_${fileCode}` }]
                 ];
 
-                await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+                await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
             }
         } catch (e) {
-            console.error('Shortlink API Error:', e.message);
-            await ctx.answerCbQuery('❌ API Error. Please try Ads.', { show_alert: true });
+            await ctx.answerCbQuery('❌ API Error. Try Ads.', { show_alert: true });
         }
+    });
+
+    bot.action('shortlink', (ctx) => {
+        ctx.answerCbQuery().catch(() => {});
+        return bot.handleUpdate({ callback_query: { data: 'sl_direct', from: ctx.from, message: ctx.callbackQuery.message } });
     });
 };

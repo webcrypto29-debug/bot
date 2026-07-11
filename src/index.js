@@ -21,7 +21,7 @@ async function bootstrap() {
         bot.use(userRegistration);
 
         // Feature Modules
-        const modules = ['user', 'admin', 'ads', 'shortlinks', 'payments', 'forcejoin'];
+        const modules = ['user', 'admin', 'ads', 'shortlinks', 'payments', 'forcejoin', 'links'];
         modules.forEach(m => {
             try {
                 require(`./handlers/${m}`)(bot);
@@ -35,12 +35,17 @@ async function bootstrap() {
             logger.error(`Bot Error: ${err.message}`);
         });
 
-        // Express Server for Ads/Health (Hugging Face port 7860)
-        app.use(express.static(path.join(__dirname, 'public')));
-        app.get('/', (req, res) => res.send('Erica Bot Live on Hugging Face!'));
-        app.get('/ad', (req, res) => res.sendFile(path.join(__dirname, 'public', 'ad.html')));
+        // Express Server for Ads/Health
+        // Using path.join with process.cwd() for cross-platform stability
+        const publicPath = path.join(process.cwd(), 'src', 'public');
+        app.use(express.static(publicPath));
 
-        const port = process.env.PORT || 7860;
+        app.get('/', (req, res) => res.send('Erica Bot Live!'));
+        app.get('/ad', (req, res) => {
+            res.sendFile(path.join(publicPath, 'ad.html'));
+        });
+
+        const port = process.env.PORT || 3000;
         app.listen(port, '0.0.0.0', () => logger.info(`Server Online on port ${port}`));
 
         await bot.launch({ allowedUpdates: ['message', 'callback_query'] });

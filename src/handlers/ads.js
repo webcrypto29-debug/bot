@@ -2,57 +2,71 @@ const config = require('../config/config');
 const dbService = require('../services/dbService');
 const deliveryService = require('../services/deliveryService');
 
+const activeTimers = new Map();
+
 module.exports = (bot) => {
-    // Handler for "Watch Ad Now" button
+    // Menu when "Watch Ad" is clicked from Unlock Page
     bot.action(/^ad_(.*)$/, async (ctx) => {
+        ctx.answerCbQuery().catch(() => {});
         const fileCode = ctx.match[1];
+        const userId = ctx.from.id;
         const baseUrl = config.monetization.miniAppUrl;
 
-        if (!baseUrl) return ctx.answerCbQuery('⚠️ Ads not configured!', { show_alert: true });
+        // Start 15s timer
+        activeTimers.set(userId, { start: Date.now(), type: 'ad' });
 
-        const url = `${baseUrl}/ad?file=${fileCode}`;
+        const text = `📺 *Rewarded Advertisement*\n\n` +
+                     `Choose how you want to earn credits:\n\n` +
+                     `1️⃣ *Mini App:* Watch full ad for *3 Credits*\n` +
+                     `2️⃣ *Direct Link:* Watch in browser for *2 Credits*\n\n` +
+                     `⏳ *Important:* You must wait at least 15 seconds before clicking Verify.`;
 
-        try {
-            const text = `📺 *Watch Rewarded Ad*\n\n` +
-                         `Watch the complete advertisement (approx 15-30s) to earn *${config.credits.perAd} Credit*.\n\n` +
-                         `⚠️ *Warning:* Closing the ad early will NOT grant any credits.`;
+        const kb = [
+            [{ text: '💎 Watch Ad Now (3 Cr)', web_app: { url: baseUrl ? `${baseUrl}/ad?file=${fileCode}` : '' } }],
+            [{ text: '🔗 Direct Link (2 Cr)', url: config.monetization.monetagUrl }],
+            [{ text: '⏱ Verify My Reward', callback_data: `verifyad_${fileCode}` }],
+            [{ text: '🔙 Back', callback_data: `file_${fileCode}` }]
+        ];
 
-            const kb = [
-                [{ text: '▶ Watch Ad Now', web_app: { url: url } }],
-                [{ text: '✅ Verify Ad', callback_data: `verifyad_${fileCode}` }],
-                [{ text: '🔙 Back', callback_data: 'earn_options' }]
-            ];
+        if (!baseUrl) kb.shift(); // Remove mini app if no URL
 
-            await ctx.reply(text, {
-                parse_mode: 'Markdown',
-                reply_markup: { inline_keyboard: kb }
-            });
-        } catch (e) {
-            console.error('Ad display error:', e.message);
-        }
+        await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
     });
 
-    // Manual Verify Button for Ads
+    // Verification Logic for Ads (Timer)
     bot.action(/^verifyad_(.*)$/, async (ctx) => {
         const fileCode = ctx.match[1];
         const userId = ctx.from.id;
+        const state = activeTimers.get(userId);
 
-        // In a more secure system, we would check a temporary token.
-        // For now, we assume if they reach this point, they've tried.
-        // The real credit is given via the auto-redirect from ad.html to bot.start(adsuccess_...)
+        if (!state) return ctx.answerCbQuery('❌ Click an ad button first!', { show_alert: true });
 
-        await ctx.answerCbQuery('⏳ Checking ad status...', { show_alert: false });
-
-        // Check current credits
-        const user = await dbService.getUser(userId);
-        if (user.credits >= (config.credits?.costPerDownload || 1) && fileCode !== 'direct') {
-            const delivered = await deliveryService.deliverFile(ctx, fileCode, userId);
-            if (delivered) {
-                await dbService.deductCredit(userId);
-                await ctx.reply('✅ *Credits verified. Delivering file...*', { parse_mode: 'Markdown' });
-            }
-        } else {
-            await ctx.reply('❌ *Ad completion not detected.*\n\nMake sure you watched the whole ad and returned to the bot via the "Done" button.', { parse_mode: 'Markdown' });
+        const elapsed = (Date.now() - state.start) / 1000;
+        if (elapsed < 15) {
+            const rem = Math.ceil(15 - elapsed);
+            return ctx.answerCbQuery(`❌ Wait ${rem}s more!`, { show_alert: true });
         }
+
+        // Grant Credits (Defaulting to 2 for manual verification)
+        const amount = 2;
+        await dbService.addCredits(userId, amount);
+        activeTimers.delete(userId);
+
+        await ctx.reply(`✅ *Reward Added!*\n🎉 *+${amount} Credits* received.`, { parse_mode: 'Markdown' });
+
+        if (fileCode !== 'direct') {
+            const user = await dbService.getUser(userId);
+            if (user && user.credits >= 1) {
+                const delivered = await deliveryService.deliverFile(ctx, fileCode, userId);
+                if (delivered) await dbService.deductCredit(userId);
+            }
+        }
+        ctx.answerCbQuery().catch(() => {});
+    });
+
+    // Handle standard earn options view
+    bot.action('view_ads', (ctx) => {
+        ctx.answerCbQuery().catch(() => {});
+        return bot.handleUpdate({ callback_query: { data: 'ad_direct', from: ctx.from, message: ctx.callbackQuery.message } });
     });
 };

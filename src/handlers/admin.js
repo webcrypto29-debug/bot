@@ -1,37 +1,38 @@
 const { adminCheck } = require('../middlewares/auth');
 const dbService = require('../services/dbService');
+const config = require('../config/config');
 
 module.exports = (bot) => {
-    const sendDashboard = async (ctx) => {
-        try {
-            const u = await dbService.getCollectionCount('users');
-            const f = await dbService.getCollectionCount('files');
-            const r = await dbService.getRevenue();
+    const showAdminDashboard = async (ctx, isEdit = false) => {
+        if (!config.adminIds.includes(ctx.from.id)) return;
 
-            let text = `🚀 *Erica Admin Dashboard*\n\n` +
-                       `👥 Total Users: \`${u}\`\n` +
-                       `📁 Total Files: \`${f}\`\n` +
-                       `💰 Revenue: *₹${r}*`;
+        const u = await dbService.getCollectionCount('users').catch(() => 0);
+        const f = await dbService.getCollectionCount('files').catch(() => 0);
+        const r = await dbService.getRevenue().catch(() => 0);
 
-            const kb = {
-                inline_keyboard: [
-                    [{ text: '📑 Generate Link', callback_data: 'admin_links' }, { text: '📦 Batch Link', callback_data: 'admin_batch' }],
-                    [{ text: '📢 Broadcast', callback_data: 'admin_broadcast' }, { text: '⚙️ Settings', callback_data: 'admin_settings' }],
-                    [{ text: '🔙 Back', callback_data: 'user_back' }]
-                ]
-            };
+        let text = `🚀 *Erica Admin Dashboard*\n\n` +
+                   `👥 Total Users: \`${u}\`\n` +
+                   `📁 Total Files: \`${f}\`\n` +
+                   `💰 Revenue: *₹${r}*`;
 
-            if (ctx.callbackQuery) {
-                await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: kb });
-            } else {
-                await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: kb });
-            }
-        } catch (error) {
-            console.error('Admin Dashboard Error:', error);
-            await ctx.reply('❌ Error loading admin dashboard.');
+        const kb = {
+            inline_keyboard: [
+                [{ text: '📑 Generate Link', callback_data: 'admin_links' }, { text: '📦 Batch Link', callback_data: 'admin_batch' }],
+                [{ text: '📢 Broadcast', callback_data: 'admin_broadcast' }, { text: '⚙️ Settings', callback_data: 'admin_settings' }],
+                [{ text: '🔙 Back to User Menu', callback_data: 'user_back' }]
+            ]
+        };
+
+        if (isEdit) {
+            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: kb }).catch(() => {});
+        } else {
+            await ctx.reply(text, { parse_mode: 'Markdown', reply_markup: kb });
         }
     };
 
-    bot.command('admin', adminCheck, sendDashboard);
-    bot.action('admin_panel_start', adminCheck, sendDashboard);
+    bot.command('admin', adminCheck, async (ctx) => showAdminDashboard(ctx));
+    bot.action('admin_panel_start', adminCheck, async (ctx) => {
+        ctx.answerCbQuery().catch(() => {});
+        showAdminDashboard(ctx, true);
+    });
 };
