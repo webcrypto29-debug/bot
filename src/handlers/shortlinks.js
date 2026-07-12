@@ -11,6 +11,7 @@ module.exports = (bot) => {
             const fileCode = ctx.match[1];
             const userId = ctx.from.id;
             const isAdmin = config.adminIds.includes(userId);
+            const apiKey = config.shortlinkApiKey;
 
             const user = await db.getUser(userId) || {};
             const lastClaim = user.lastVerificationClaim ? (user.lastVerificationClaim.toDate ? user.lastVerificationClaim.toDate() : new Date(user.lastVerificationClaim)) : new Date(0);
@@ -21,33 +22,45 @@ module.exports = (bot) => {
                 return ctx.answerCbQuery(`⏳ Please wait ${diff} seconds before earning credits again.`, { show_alert: true });
             }
 
+            if (!apiKey) {
+                if (isAdmin) return ctx.answerCbQuery("⚠️ GPLinks API Key missing in .env!", { show_alert: true });
+                else return ctx.answerCbQuery("❌ Verification service is temporarily unavailable.", { show_alert: true });
+            }
+
             // 1. Generate unique session ID
             const sessionId = crypto.randomBytes(8).toString('hex').toUpperCase();
 
             // 2. Create session in DB
             await db.createVerificationSession(sessionId, userId);
 
-            // 3. Construct the Blogger Linkvertise Gateway URL
-            // Passing type=verification, session, userId, fileCode, and botUsername
-            const verifyUrl = `https://monetagad5367.blogspot.com/p/reward.html?type=verification&session=${sessionId}&userId=${userId}&file=${fileCode}&bot=${config.botUsername}`;
+            // 3. Generate GPLinks Shortlink
+            // Redirects back to bot with success payload
+            const botLink = `https://t.me/${config.botUsername}?start=v_${sessionId}_${fileCode}`;
+            const apiResp = await axios.get(`https://gplinks.in/api?api=${apiKey}&url=${encodeURIComponent(botLink)}`);
 
-            const text = `🔗 *Linkvertise Verification*\n\n` +
-                         `Complete this verification successfully to earn credits.\n` +
-                         `Credits are awarded only after successful completion.\n\n` +
-                         `⚠️ *Note:* Don't close the browser until you return to the bot.`;
+            if (apiResp.data && (apiResp.data.status === 'success' || apiResp.data.shortenedUrl)) {
+                const shortUrl = apiResp.data.shortenedUrl || apiResp.data.url;
 
-            const kb = [
-                [{ text: '🔓 Open Verification', url: verifyUrl }],
-                [{ text: '✅ Verify Status', callback_data: `verify_${sessionId}_${fileCode}` }],
-                [{ text: '🔙 Cancel', callback_data: 'main' }]
-            ];
+                const text = `🔗 *GPLinks Verification*\n\n` +
+                             `Complete this verification successfully to earn credits.\n` +
+                             `Credits are awarded only after successful completion.\n\n` +
+                             `⚠️ *Note:* Don't close the browser until you return to the bot.`;
 
-            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
-            await ctx.answerCbQuery();
+                const kb = [
+                    [{ text: '🔓 Open Verification', url: shortUrl }],
+                    [{ text: '✅ Verify Status', callback_data: `verify_${sessionId}_${fileCode}` }],
+                    [{ text: '🔙 Cancel', callback_data: 'main' }]
+                ];
+
+                await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+                await ctx.answerCbQuery();
+            } else {
+                throw new Error("GPLinks API Error");
+            }
 
         } catch (e) {
-            console.error("Verification initiation error:", e);
-            ctx.answerCbQuery("❌ Error generating link. Try again.", { show_alert: true });
+            console.error("Verification initiation error:", e.message);
+            ctx.answerCbQuery("❌ Error generating verification link. Try again.", { show_alert: true });
         }
     });
 

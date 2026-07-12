@@ -139,9 +139,9 @@ module.exports = (bot) => {
                     try {
                         const result = await db.claimShortlinkReward(sessionId, userId);
                         if (result.success) {
-                            const text = `✅ *Reward Completed*\n\n` +
-                                         `🎉 *+${result.amount} Credits Added Successfully*\n\n` +
-                                         `Your balance has been updated.`;
+                            const text = `✅ *Verification Completed*\n\n` +
+                                         `🎉 *+${result.amount} Credits Added*\n\n` +
+                                         `Your balance has been updated successfully.`;
                             const kb = [];
                             if (fileCode !== 'direct') {
                                 kb.push([{ text: '📥 Continue Download', callback_data: `dl_${fileCode}` }]);
@@ -163,9 +163,9 @@ module.exports = (bot) => {
                     try {
                         const result = await db.claimBloggerReward(sessionId, userId);
                         if (result.success) {
-                            const text = `✅ *Reward Completed*\n\n` +
-                                         `🎉 *+${result.amount} Credits Added Successfully*\n\n` +
-                                         `Your balance has been updated.`;
+                            const text = `✅ *Rewarded Ad Completed*\n\n` +
+                                         `🎉 *+${result.amount} Credits Added*\n\n` +
+                                         `Your balance has been updated successfully.`;
                             const kb = [];
                             if (fileCode !== 'direct') {
                                 kb.push([{ text: '📥 Continue Download', callback_data: `dl_${fileCode}` }]);
@@ -258,10 +258,10 @@ module.exports = (bot) => {
                              `━━━━━━━━━━━━━━━━━━━━\n\n` +
                              `──────── OR ────────\n\n` +
                              `━━━━━━━━━━━━━━━━━━━━\n\n` +
-                             `🔗 *Complete Linkvertise Verification*\n\n` +
+                             `🔗 *Complete GPLinks Verification*\n\n` +
                              `⏱ About 20–40 seconds\n` +
                              `🎁 *Reward:* +5 Credits\n\n` +
-                             `Complete ONE Linkvertise verification.\n` +
+                             `Complete ONE GPLinks verification.\n` +
                              `Credits will be added automatically after successful completion.\n\n` +
                              `[ 🔗 Earn 5 Credits ]\n` +
                              `🔵 *Verification Required*\n\n` +
@@ -317,10 +317,10 @@ module.exports = (bot) => {
                          `━━━━━━━━━━━━━━━━━━━━\n\n` +
                          `──────── OR ────────\n\n` +
                          `━━━━━━━━━━━━━━━━━━━━\n\n` +
-                         `🔗 *Complete Linkvertise Verification*\n\n` +
+                         `🔗 *Complete GPLinks Verification*\n\n` +
                          `⏱ About 20–40 seconds\n` +
                          `🎁 *Reward:* +5 Credits\n\n` +
-                         `Complete ONE Linkvertise verification.\n` +
+                         `Complete ONE GPLinks verification.\n` +
                          `Credits will be added automatically after successful completion.\n\n` +
                          `[ 🔗 Earn 5 Credits ]\n` +
                          `🔵 *Verification Required*\n\n` +
