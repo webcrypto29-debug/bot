@@ -15,7 +15,7 @@ module.exports = (bot) => {
                 if (isAdmin) {
                     return ctx.answerCbQuery("⚠️ MONETAG_ZONE_ID not set in .env!", { show_alert: true });
                 } else {
-                    return ctx.answerCbQuery("❌ This feature is currently unavailable.", { show_alert: true });
+                    return ctx.answerCbQuery("❌ This feature is currently unavailable.", { show_alert: false });
                 }
             }
 

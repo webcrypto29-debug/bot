@@ -64,7 +64,7 @@ module.exports = (bot) => {
         const user = await db.getUser(userId) || { credits: 0, status: 'active' };
         const settings = await db.getGlobalSettings();
         const isAdmin = config.adminIds.includes(userId);
-        const isVip = user.status === 'vip';
+        const isVip = user.isVip === true || user.status === 'vip';
 
         let text = file.isBatch ? `📦 *Batch Ready*\n\n` : `📁 *File Ready*\n\n`;
         if (file.isBatch) {
@@ -141,32 +141,28 @@ module.exports = (bot) => {
                         const settings = await db.getGlobalSettings();
                         await creditService.addCredits(userId, settings.rewardVerification);
                         await db.updateSession(sessionId, { rewarded: true, status: true });
-                        await ctx.reply(`✅ *Verification Success!*\n\nCredits added.`, { parse_mode: 'Markdown' });
 
-                        // Auto-Download Check
-                        const user = await db.getUser(userId);
-                        const isAdmin = config.adminIds.includes(userId);
-                        const isVip = user.status === 'vip';
-                        if (fileCode !== 'direct' && (user.credits >= settings.downloadCost || isAdmin || isVip)) {
-                            return deliverFileOrBatch(ctx, fileCode, userId, settings, isAdmin, isVip);
+                        const text = `✅ *Reward verified successfully.*\n\n🎁 You earned ${settings.rewardVerification} Credits.`;
+                        const kb = [];
+                        if (fileCode !== 'direct') {
+                            kb.push([{ text: '🔄 Continue Download', callback_data: `dl_${fileCode}` }]);
+                        } else {
+                            kb.push([{ text: '🔙 Back to Menu', callback_data: 'main' }]);
                         }
-                        if (fileCode !== 'direct') return showDownloadPage(ctx, fileCode);
+                        return ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
                     }
                 } else if (type === 'reward') {
                     try {
                         const result = await db.claimBloggerReward(sessionId, userId);
                         if (result.success) {
-                            await ctx.reply(`✅ *Reward verified successfully.*\n\n🎉 Credits added.`, { parse_mode: 'Markdown' });
-
-                            // Auto-Download Check
-                            const user = await db.getUser(userId);
-                            const settings = await db.getGlobalSettings();
-                            const isAdmin = config.adminIds.includes(userId);
-                            const isVip = user.status === 'vip';
-                            if (fileCode !== 'direct' && (user.credits >= settings.downloadCost || isAdmin || isVip)) {
-                                return deliverFileOrBatch(ctx, fileCode, userId, settings, isAdmin, isVip);
+                            const text = `✅ *Reward verified successfully.*\n\n🎁 You earned ${result.amount} Credits.`;
+                            const kb = [];
+                            if (fileCode !== 'direct') {
+                                kb.push([{ text: '🔄 Continue Download', callback_data: `dl_${fileCode}` }]);
+                            } else {
+                                kb.push([{ text: '🔙 Back to Menu', callback_data: 'main' }]);
                             }
-                            if (fileCode !== 'direct') return showDownloadPage(ctx, fileCode);
+                            return ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
                         }
                     } catch (e) {
                         if (['SESSION_NOT_FOUND', 'SESSION_EXPIRED', 'ALREADY_REWARDED'].includes(e.message)) {
@@ -232,32 +228,30 @@ module.exports = (bot) => {
             const settings = await db.getGlobalSettings();
 
             const user = await db.getUser(userId) || { credits: 0, status: 'active' };
-            const isVip = user.status === 'vip';
+            const isVip = user.isVip === true || user.status === 'vip';
 
             if (user.credits < settings.downloadCost && !isAdmin && !isVip) {
-                const text = `━━━━━━━━━━━━━━━━━━\n` +
-                             `*Earn Download Credits*\n\n` +
-                             `Choose ANY ONE option below.\n\n` +
-                             `*Option 1*\n` +
+                const text = `━━━━━━━━━━━━━━━━━━━━\n` +
+                             `💰 *Earn Download Credits*\n\n` +
+                             `Choose ANY ONE option.\n` +
+                             `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                             `⭐ *Recommended*\n` +
                              `📺 *Watch Rewarded Ad*\n\n` +
-                             `Reward:\n` +
-                             `+${settings.rewardAd || 3} Credits\n\n` +
-                             `Watch one rewarded advertisement completely to earn ${settings.rewardAd || 3} credits.\n\n` +
-                             `[ Earn ${settings.rewardAd || 3} Credits ]\n\n` +
-                             `------------------------------------\n\n` +
-                             `*Option 2*\n` +
+                             `✅ Fastest method\n` +
+                             `⏱ Around 15 seconds\n` +
+                             `🎁 Reward: +${settings.rewardAd || 3} Credits\n\n` +
+                             `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                             `*OR*\n` +
                              `🔗 *Complete Verification*\n\n` +
-                             `Reward:\n` +
-                             `+${settings.rewardVerification || 5} Credits\n\n` +
-                             `Complete one verification to earn ${settings.rewardVerification || 5} credits.\n\n` +
-                             `[ Earn ${settings.rewardVerification || 5} Credits ]\n\n` +
-                             `------------------------------------\n\n` +
-                             `You can use ANY option to earn download credits.\n` +
-                             `━━━━━━━━━━━━━━━━━━`;
+                             `⏱ Around 20-40 seconds\n` +
+                             `🎁 Reward: +${settings.rewardVerification || 5} Credits\n\n` +
+                             `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                             `Need more downloads?\n` +
+                             `Earn credits using ANY option above.`;
 
                 const kb = [
-                    [{ text: `📺 Earn ${settings.rewardAd || 3} Credits`, callback_data: `watch_${code}` }],
-                    [{ text: `🔗 Earn ${settings.rewardVerification || 5} Credits`, callback_data: `short_${code}` }],
+                    [{ text: '📺 Watch Rewarded Ad', callback_data: `watch_${code}` }],
+                    [{ text: '🔗 Complete Verification', callback_data: `short_${code}` }],
                     [{ text: '🔙 Back', callback_data: 'main' }]
                 ];
 
@@ -287,29 +281,27 @@ module.exports = (bot) => {
     bot.action('earn_credits', async (ctx) => {
         try {
             const settings = await db.getGlobalSettings();
-            const text = `━━━━━━━━━━━━━━━━━━\n` +
-                         `*Earn Download Credits*\n\n` +
-                         `Choose ANY ONE option below.\n\n` +
-                         `*Option 1*\n` +
+            const text = `━━━━━━━━━━━━━━━━━━━━\n` +
+                         `💰 *Earn Download Credits*\n\n` +
+                         `Choose ANY ONE option.\n` +
+                         `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                         `⭐ *Recommended*\n` +
                          `📺 *Watch Rewarded Ad*\n\n` +
-                         `Reward:\n` +
-                         `+${settings.rewardAd || 3} Credits\n\n` +
-                         `Watch one rewarded advertisement completely to earn ${settings.rewardAd || 3} credits.\n\n` +
-                         `[ Earn ${settings.rewardAd || 3} Credits ]\n\n` +
-                         `------------------------------------\n\n` +
-                         `*Option 2*\n` +
+                         `✅ Fastest method\n` +
+                         `⏱ Around 15 seconds\n` +
+                         `🎁 Reward: +${settings.rewardAd || 3} Credits\n\n` +
+                         `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                         `*OR*\n` +
                          `🔗 *Complete Verification*\n\n` +
-                         `Reward:\n` +
-                         `+${settings.rewardVerification || 5} Credits\n\n` +
-                         `Complete one verification to earn ${settings.rewardVerification || 5} credits.\n\n` +
-                         `[ Earn ${settings.rewardVerification || 5} Credits ]\n\n` +
-                         `------------------------------------\n\n` +
-                         `You can use ANY option to earn download credits.\n` +
-                         `━━━━━━━━━━━━━━━━━━`;
+                         `⏱ Around 20-40 seconds\n` +
+                         `🎁 Reward: +${settings.rewardVerification || 5} Credits\n\n` +
+                         `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                         `Need more downloads?\n` +
+                         `Earn credits using ANY option above.`;
 
             const kb = [
-                [{ text: `📺 Earn ${settings.rewardAd || 3} Credits`, callback_data: `watch_direct` }],
-                [{ text: `🔗 Earn ${settings.rewardVerification || 5} Credits`, callback_data: `short_direct` }],
+                [{ text: '📺 Watch Rewarded Ad', callback_data: `watch_direct` }],
+                [{ text: '🔗 Complete Verification', callback_data: `short_direct` }],
                 [{ text: '🔙 Back', callback_data: 'main' }]
             ];
 

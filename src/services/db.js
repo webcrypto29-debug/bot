@@ -105,7 +105,7 @@ const dbService = {
         const sessionRef = db.collection('ad_sessions').doc(sessionId);
         const userRef = db.collection('users').doc(userId.toString());
         const settings = await this.getGlobalSettings();
-        const rewardAmount = settings.rewardBlogger || 10;
+        const rewardAmount = settings.rewardAd || 3;
 
         return await db.runTransaction(async (t) => {
             const sDoc = await t.get(sessionRef);

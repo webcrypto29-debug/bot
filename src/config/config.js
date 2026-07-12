@@ -28,7 +28,7 @@ const config = {
     // Monetization
     monetagZoneId: process.env.MONETAG_ZONE_ID, // Loaded from .env
     baseUrl: process.env.BASE_URL,             // Loaded from .env (e.g. https://xyz.serveo.net)
-    shortlinkApiKey: process.env.URLSHORTX_API_KEY,
+    shortlinkApiKey: process.env.URLSHORTX_API_KEY || process.env.GPLINKS_API_KEY,
 
     // VIP Pricing
     vip: {

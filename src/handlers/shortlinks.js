@@ -14,9 +14,9 @@ module.exports = (bot) => {
 
         if (!apiKey) {
             if (isAdmin) {
-                return ctx.answerCbQuery("⚠️ Shortlink API not configured! Please set URLSHORTX_API_KEY in .env", { show_alert: true });
+                return ctx.answerCbQuery("⚠️ Shortlink API not configured! Please set URLSHORTX_API_KEY or GPLINKS_API_KEY in .env", { show_alert: true });
             } else {
-                return ctx.answerCbQuery("❌ This feature is currently unavailable.", { show_alert: true });
+                return ctx.answerCbQuery("❌ This feature is currently unavailable.", { show_alert: false });
             }
         }
 
