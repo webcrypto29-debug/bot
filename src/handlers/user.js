@@ -139,10 +139,12 @@ module.exports = (bot) => {
                     try {
                         const result = await db.claimShortlinkReward(sessionId, userId);
                         if (result.success) {
-                            const text = `✅ *Reward verified successfully.*\n\n🎁 You earned ${result.amount} Credits.`;
+                            const text = `✅ *Congratulations!*\n\n` +
+                                         `🎉 You earned +${result.amount} Credits\n\n` +
+                                         `Your balance has been updated successfully.`;
                             const kb = [];
                             if (fileCode !== 'direct') {
-                                kb.push([{ text: '🔄 Continue Download', callback_data: `dl_${fileCode}` }]);
+                                kb.push([{ text: '📥 Continue Download', callback_data: `dl_${fileCode}` }]);
                             } else {
                                 kb.push([{ text: '🔙 Back to Menu', callback_data: 'main' }]);
                             }
@@ -160,10 +162,12 @@ module.exports = (bot) => {
                     try {
                         const result = await db.claimBloggerReward(sessionId, userId);
                         if (result.success) {
-                            const text = `✅ *Reward verified successfully.*\n\n🎁 You earned ${result.amount} Credits.`;
+                            const text = `✅ *Congratulations!*\n\n` +
+                                         `🎉 You earned +${result.amount} Credits\n\n` +
+                                         `Your balance has been updated successfully.`;
                             const kb = [];
                             if (fileCode !== 'direct') {
-                                kb.push([{ text: '🔄 Continue Download', callback_data: `dl_${fileCode}` }]);
+                                kb.push([{ text: '📥 Continue Download', callback_data: `dl_${fileCode}` }]);
                             } else {
                                 kb.push([{ text: '🔙 Back to Menu', callback_data: 'main' }]);
                             }
@@ -236,27 +240,37 @@ module.exports = (bot) => {
             const isVip = user.isVip === true || user.status === 'vip';
 
             if (user.credits < settings.downloadCost && !isAdmin && !isVip) {
-                const text = `━━━━━━━━━━━━━━━━━━━━\n` +
-                             `💰 *Earn Download Credits*\n\n` +
-                             `Choose ANY ONE option.\n` +
+                const text = `💰 *Earn Download Credits*\n\n` +
+                             `Complete ANY ONE option below to continue downloading.\n\n` +
+                             `━━━━━━━━━━━━━━━━━━━━\n` +
+                             `⭐ *RECOMMENDED*\n` +
+                             `⚡ *Fastest & Easiest*\n\n` +
+                             `📺 *Watch Rewarded Ad*\n` +
+                             `✔ Takes around 15 seconds\n` +
+                             `🎁 *Reward:* +${settings.rewardAd || 3} Credits\n\n` +
+                             `Watch one rewarded advertisement completely.\n` +
+                             `Credits are added automatically after successful completion.\n\n` +
+                             `📺 *Earn ${settings.rewardAd || 3} Credits*\n` +
+                             `🟢 Most users choose this option\n` +
                              `━━━━━━━━━━━━━━━━━━━━\n\n` +
-                             `⭐ *Recommended*\n` +
-                             `📺 *Watch Rewarded Ad*\n\n` +
-                             `✅ Fastest method\n` +
-                             `⏱ Around 15 seconds\n` +
-                             `🎁 Reward: +${settings.rewardAd || 3} Credits\n\n` +
+                             `────────── *OR* ──────────\n\n` +
+                             `━━━━━━━━━━━━━━━━━━━━\n` +
+                             `🔗 *Complete Verification*\n` +
+                             `⏱ Takes around 20–40 seconds\n` +
+                             `🎁 *Reward:* +${settings.rewardVerification || 5} Credits\n\n` +
+                             `Complete one verification successfully.\n` +
+                             `Credits are added automatically after verification.\n\n` +
+                             `🔗 *Earn ${settings.rewardVerification || 5} Credits*\n` +
                              `━━━━━━━━━━━━━━━━━━━━\n\n` +
-                             `*OR*\n` +
-                             `🔗 *Complete Verification*\n\n` +
-                             `⏱ Around 20-40 seconds\n` +
-                             `🎁 Reward: +${settings.rewardVerification || 5} Credits\n\n` +
-                             `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                             `💡 *Tip*\n` +
+                             `Rewarded Ads are the fastest and easiest way to earn credits.\n` +
+                             `Use Verification only if Rewarded Ads are temporarily unavailable.\n\n` +
                              `Need more downloads?\n` +
                              `Earn credits using ANY option above.`;
 
                 const kb = [
-                    [{ text: '📺 Watch Rewarded Ad', callback_data: `watch_${code}` }],
-                    [{ text: '🔗 Complete Verification', callback_data: `short_${code}` }],
+                    [{ text: `📺 Watch Rewarded Ad`, callback_data: `watch_${code}` }],
+                    [{ text: `🔗 Complete Verification`, callback_data: `short_${code}` }],
                     [{ text: '🔙 Back', callback_data: 'main' }]
                 ];
 
@@ -286,21 +300,31 @@ module.exports = (bot) => {
     bot.action('earn_credits', async (ctx) => {
         try {
             const settings = await db.getGlobalSettings();
-            const text = `━━━━━━━━━━━━━━━━━━━━\n` +
-                         `💰 *Earn Download Credits*\n\n` +
-                         `Choose ANY ONE option.\n` +
+            const text = `💰 *Earn Download Credits*\n\n` +
+                         `Complete ANY ONE option below to continue downloading.\n\n` +
+                         `━━━━━━━━━━━━━━━━━━━━\n` +
+                         `⭐ *RECOMMENDED*\n` +
+                         `⚡ *Fastest & Easiest*\n\n` +
+                         `📺 *Watch Rewarded Ad*\n` +
+                         `✔ Takes around 15 seconds\n` +
+                         `🎁 *Reward:* +${settings.rewardAd || 3} Credits\n\n` +
+                         `Watch one rewarded advertisement completely.\n` +
+                         `Credits are added automatically after successful completion.\n\n` +
+                         `📺 *Earn ${settings.rewardAd || 3} Credits*\n` +
+                         `🟢 Most users choose this option\n` +
                          `━━━━━━━━━━━━━━━━━━━━\n\n` +
-                         `⭐ *Recommended*\n` +
-                         `📺 *Watch Rewarded Ad*\n\n` +
-                         `✅ Fastest method\n` +
-                         `⏱ Around 15 seconds\n` +
-                         `🎁 Reward: +${settings.rewardAd || 3} Credits\n\n` +
+                         `────────── *OR* ──────────\n\n` +
+                         `━━━━━━━━━━━━━━━━━━━━\n` +
+                         `🔗 *Complete Verification*\n` +
+                         `⏱ Takes around 20–40 seconds\n` +
+                         `🎁 *Reward:* +${settings.rewardVerification || 5} Credits\n\n` +
+                         `Complete one verification successfully.\n` +
+                         `Credits are added automatically after verification.\n\n` +
+                         `🔗 *Earn ${settings.rewardVerification || 5} Credits*\n` +
                          `━━━━━━━━━━━━━━━━━━━━\n\n` +
-                         `*OR*\n` +
-                         `🔗 *Complete Verification*\n\n` +
-                         `⏱ Around 20-40 seconds\n` +
-                         `🎁 Reward: +${settings.rewardVerification || 5} Credits\n\n` +
-                         `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                         `💡 *Tip*\n` +
+                         `Rewarded Ads are the fastest and easiest way to earn credits.\n` +
+                         `Use Verification only if Rewarded Ads are temporarily unavailable.\n\n` +
                          `Need more downloads?\n` +
                          `Earn credits using ANY option above.`;
 
