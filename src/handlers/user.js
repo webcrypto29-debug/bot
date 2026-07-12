@@ -90,7 +90,17 @@ module.exports = (bot) => {
         try {
             const payload = ctx.payload;
             const userId = ctx.from.id;
-            if (!(await db.getUser(userId))) await db.createUser(userId, { name: ctx.from.first_name });
+
+            let user = await db.getUser(userId);
+            if (!user) {
+                await db.createUser(userId, {
+                    name: ctx.from.first_name,
+                    credits: 3,
+                    signupBonus: true
+                });
+                await ctx.reply(`🎉 Welcome to Telegram File Portal!\n\nAs a welcome gift you received\n🎁 3 FREE Credits.\n\nYou can use them immediately to download files.`);
+                user = await db.getUser(userId);
+            }
 
             // Handle Rewards from Shortlink/Ad
             if (payload && (payload.startsWith('reward_') || payload.startsWith('v_'))) {

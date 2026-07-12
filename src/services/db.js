@@ -43,10 +43,11 @@ const dbService = {
     },
     async createUser(userId, data) {
         await db.collection('users').doc(userId.toString()).set({
-            credits: 0,
-            totalEarned: 0,
+            credits: data.credits || 0,
+            totalEarned: data.credits || 0,
             totalSpent: 0,
             status: 'active',
+            signupBonus: data.signupBonus || false,
             createdAt: new Date(),
             lastUpdate: new Date(),
             ...data
