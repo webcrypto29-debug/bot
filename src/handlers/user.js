@@ -98,7 +98,33 @@ module.exports = (bot) => {
                     credits: 3,
                     signupBonus: true
                 });
-                await ctx.reply(`🎉 Welcome to Telegram File Portal!\n\nAs a welcome gift you received\n🎁 3 FREE Credits.\n\nYou can use them immediately to download files.`);
+
+                const welcomeText = `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                                   `🎉 *Welcome to Telegram File Portal*\n\n` +
+                                   `🎁 *Welcome Gift*\n` +
+                                   `You received\n` +
+                                   `✨ *+3 FREE Credits*\n\n` +
+                                   `You can immediately use these credits to download files.\n` +
+                                   `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                                   `📥 *Download Cost*\n` +
+                                   `• 1 Download = 1 Credit\n` +
+                                   `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                                   `💰 *Need More Credits?*\n` +
+                                   `📺 *Watch Rewarded Ad*\n` +
+                                   `+3 Credits\n` +
+                                   `*OR*\n` +
+                                   `🔗 *Complete Verification*\n` +
+                                   `+5 Credits\n\n` +
+                                   `You can use ANY ONE option whenever your credits run out.\n` +
+                                   `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                                   `Enjoy your experience ❤️`;
+
+                const welcomeKb = [
+                    [{ text: '📥 Start Downloading', callback_data: 'main' }],
+                    [{ text: '💰 Earn More Credits', callback_data: 'earn_credits' }]
+                ];
+
+                await ctx.reply(welcomeText, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: welcomeKb } });
                 user = await db.getUser(userId);
             }
 
@@ -255,6 +281,41 @@ module.exports = (bot) => {
             await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
         } catch (e) {
             console.error("Main menu error:", e);
+        }
+    });
+
+    bot.action('earn_credits', async (ctx) => {
+        try {
+            const settings = await db.getGlobalSettings();
+            const text = `━━━━━━━━━━━━━━━━━━\n` +
+                         `*Earn Download Credits*\n\n` +
+                         `Choose ANY ONE option below.\n\n` +
+                         `*Option 1*\n` +
+                         `📺 *Watch Rewarded Ad*\n\n` +
+                         `Reward:\n` +
+                         `+${settings.rewardAd || 3} Credits\n\n` +
+                         `Watch one rewarded advertisement completely to earn ${settings.rewardAd || 3} credits.\n\n` +
+                         `[ Earn ${settings.rewardAd || 3} Credits ]\n\n` +
+                         `------------------------------------\n\n` +
+                         `*Option 2*\n` +
+                         `🔗 *Complete Verification*\n\n` +
+                         `Reward:\n` +
+                         `+${settings.rewardVerification || 5} Credits\n\n` +
+                         `Complete one verification to earn ${settings.rewardVerification || 5} credits.\n\n` +
+                         `[ Earn ${settings.rewardVerification || 5} Credits ]\n\n` +
+                         `------------------------------------\n\n` +
+                         `You can use ANY option to earn download credits.\n` +
+                         `━━━━━━━━━━━━━━━━━━`;
+
+            const kb = [
+                [{ text: `📺 Earn ${settings.rewardAd || 3} Credits`, callback_data: `watch_direct` }],
+                [{ text: `🔗 Earn ${settings.rewardVerification || 5} Credits`, callback_data: `short_direct` }],
+                [{ text: '🔙 Back', callback_data: 'main' }]
+            ];
+
+            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+        } catch (e) {
+            console.error("Earn credits error:", e);
         }
     });
 
