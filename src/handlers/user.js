@@ -36,24 +36,34 @@ module.exports = (bot) => {
     };
 
     const deliverFileOrBatch = async (ctx, code, userId, settings, isAdmin, isVip) => {
-        const file = await db.getFile(code);
-        if (!file) return ctx.reply("❌ File not found!");
+        try {
+            const file = await db.getFile(code);
+            if (!file) return ctx.reply("❌ File not found!");
 
-        let success = false;
-        if (file.isBatch) {
-            for (const f of file.files) await sendFile(ctx, f);
-            success = true;
-        } else {
-            success = await sendFile(ctx, file);
-        }
+            let success = false;
+            if (file.isBatch) {
+                for (const f of file.files) {
+                    const res = await sendFile(ctx, f);
+                    if (res) success = true;
+                }
+            } else {
+                success = await sendFile(ctx, file);
+            }
 
-        if (success && !isAdmin && !isVip) {
-            await creditService.spendCredits(userId, settings.downloadCost);
-            await db.recordDownload(userId, code);
-        } else if (success) {
-            await db.recordDownload(userId, code);
+            if (success) {
+                if (!isAdmin && !isVip) {
+                    await creditService.spendCredits(userId, settings.downloadCost);
+                }
+                await db.recordDownload(userId, code);
+            } else {
+                await ctx.reply("❌ Failed to deliver the file. It might have been deleted or the bot has no access.");
+            }
+            return success;
+        } catch (e) {
+            console.error("Delivery System Error:", e);
+            await ctx.reply("❌ A system error occurred during delivery.");
+            return false;
         }
-        return success;
     };
 
     const showDownloadPage = async (ctx, payload) => {

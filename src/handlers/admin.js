@@ -262,10 +262,10 @@ module.exports = (bot) => {
             const linkData = parseTelegramLink(msg.text);
             if (linkData) {
                 try {
-                    const tempMsg = await ctx.telegram.copyMessage(ctx.from.id, linkData.chatId, linkData.messageId, { disable_notification: true });
+                    // Use forwardMessage to get the actual message object with file data
+                    const tempMsg = await ctx.telegram.forwardMessage(ctx.from.id, linkData.chatId, linkData.messageId);
                     fileData = getFileData(tempMsg);
                     await ctx.telegram.deleteMessage(ctx.from.id, tempMsg.message_id);
-                    // If Telegram link fetch fails to find a file, we treat it as a generic URL
                 } catch (e) {
                     // Fail gracefully, will check generic URL logic below
                 }
