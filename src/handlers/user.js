@@ -136,20 +136,25 @@ module.exports = (bot) => {
                 const fileCode = parts[2] || 'direct';
 
                 if (type === 'v') {
-                    const session = await db.getSession(sessionId);
-                    if (session && !session.rewarded) {
-                        const settings = await db.getGlobalSettings();
-                        await creditService.addCredits(userId, settings.rewardVerification);
-                        await db.updateSession(sessionId, { rewarded: true, status: true });
-
-                        const text = `✅ *Reward verified successfully.*\n\n🎁 You earned ${settings.rewardVerification} Credits.`;
-                        const kb = [];
-                        if (fileCode !== 'direct') {
-                            kb.push([{ text: '🔄 Continue Download', callback_data: `dl_${fileCode}` }]);
-                        } else {
-                            kb.push([{ text: '🔙 Back to Menu', callback_data: 'main' }]);
+                    try {
+                        const result = await db.claimShortlinkReward(sessionId, userId);
+                        if (result.success) {
+                            const text = `✅ *Reward verified successfully.*\n\n🎁 You earned ${result.amount} Credits.`;
+                            const kb = [];
+                            if (fileCode !== 'direct') {
+                                kb.push([{ text: '🔄 Continue Download', callback_data: `dl_${fileCode}` }]);
+                            } else {
+                                kb.push([{ text: '🔙 Back to Menu', callback_data: 'main' }]);
+                            }
+                            return ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
                         }
-                        return ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+                    } catch (e) {
+                        if (['SESSION_NOT_FOUND', 'SESSION_EXPIRED', 'ALREADY_REWARDED'].includes(e.message)) {
+                            await ctx.reply(`❌ Invalid or expired reward session.`);
+                        } else {
+                            console.error("Shortlink reward error:", e);
+                            await ctx.reply(`❌ An error occurred while verifying reward.`);
+                        }
                     }
                 } else if (type === 'reward') {
                     try {

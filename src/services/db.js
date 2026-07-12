@@ -84,6 +84,41 @@ const dbService = {
         await db.collection('sessions').doc(sessionId).update(data);
     },
 
+    /**
+     * Shortlink Reward Transaction
+     */
+    async claimShortlinkReward(sessionId, userId) {
+        const sessionRef = db.collection('sessions').doc(sessionId);
+        const userRef = db.collection('users').doc(userId.toString());
+        const settings = await this.getGlobalSettings();
+        const rewardAmount = settings.rewardVerification || 5;
+
+        return await db.runTransaction(async (t) => {
+            const sDoc = await t.get(sessionRef);
+            if (!sDoc.exists) throw new Error('SESSION_NOT_FOUND');
+
+            const session = sDoc.data();
+            const now = new Date();
+            const expiresAt = session.expiresAt.toDate ? session.expiresAt.toDate() : new Date(session.expiresAt);
+
+            if (session.rewarded) throw new Error('ALREADY_REWARDED');
+            if (now > expiresAt) throw new Error('SESSION_EXPIRED');
+
+            const uDoc = await t.get(userRef);
+            if (!uDoc.exists) throw new Error('USER_NOT_FOUND');
+            const userData = uDoc.data();
+
+            t.update(sessionRef, { rewarded: true, status: true, rewardTime: now });
+            t.update(userRef, {
+                credits: (userData.credits || 0) + rewardAmount,
+                totalEarned: (userData.totalEarned || 0) + rewardAmount,
+                lastUpdate: now
+            });
+
+            return { success: true, amount: rewardAmount };
+        });
+    },
+
     // Ad Sessions
     async createAdSession(sessionId, userId) {
         const expiry = new Date(); expiry.setMinutes(expiry.getMinutes() + 15);
