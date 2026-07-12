@@ -120,7 +120,6 @@ const dbService = {
 
             // Daily Limit Check for GPLinks (Once per 24 hours)
             const lastClaim = userData.lastVerificationClaim ? (userData.lastVerificationClaim.toDate ? userData.lastVerificationClaim.toDate() : new Date(userData.lastVerificationClaim)) : new Date(0);
-            const now = new Date();
             if (now - lastClaim < 86400000) { // 24 Hours = 86400000 ms
                 throw new Error('DAILY_LIMIT');
             }
