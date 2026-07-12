@@ -196,8 +196,8 @@ module.exports = (bot) => {
             }
 
             // Show Main Menu
-            const user = await db.getUser(userId) || { credits: 0 };
-            const text = `👋 *Welcome to ${config.botUsername}*\n\n💰 *Balance:* \`${user.credits} Credits\``;
+            const currentUser = await db.getUser(userId) || { credits: 0 };
+            const text = `👋 *Welcome to ${config.botUsername}*\n\n💰 *Balance:* \`${currentUser.credits} Credits\``;
             const kb = [[{ text: '👤 My Profile', callback_data: 'profile' }]];
             if (config.adminIds.includes(userId)) kb.unshift([{ text: '🛠 Admin Panel', callback_data: 'admin' }]);
             return ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
