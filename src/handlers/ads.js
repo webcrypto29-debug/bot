@@ -40,10 +40,10 @@ module.exports = (bot) => {
             let isWebApp = true;
 
             if (!baseUrl) {
-                adUrl = `https://monetagad5367.blogspot.com/p/reward.html?session=${sessionId}&file=${fileCode}&bot=${config.botUsername}`;
+                adUrl = `https://monetagad5367.blogspot.com/p/reward.html?type=ad&session=${sessionId}&userId=${userId}&file=${fileCode}&bot=${config.botUsername}`;
                 isWebApp = false;
             } else {
-                adUrl = `${baseUrl}/ad?session=${sessionId}&file=${fileCode}`;
+                adUrl = `${baseUrl}/ad?type=ad&session=${sessionId}&file=${fileCode}`;
             }
 
             const text = `📺 *Rewarded Advertisement*\n\n` +

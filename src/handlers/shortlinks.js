@@ -28,8 +28,8 @@ module.exports = (bot) => {
             await db.createVerificationSession(sessionId, userId);
 
             // 3. Construct the Blogger Linkvertise Gateway URL
-            // Passing session, userId, fileCode, and botUsername
-            const verifyUrl = `https://monetagad5367.blogspot.com/p/reward.html?session=${sessionId}&userId=${userId}&file=${fileCode}&bot=${config.botUsername}&type=verify`;
+            // Passing type=verification, session, userId, fileCode, and botUsername
+            const verifyUrl = `https://monetagad5367.blogspot.com/p/reward.html?type=verification&session=${sessionId}&userId=${userId}&file=${fileCode}&bot=${config.botUsername}`;
 
             const text = `🔗 *Linkvertise Verification*\n\n` +
                          `Complete this verification successfully to earn credits.\n` +
