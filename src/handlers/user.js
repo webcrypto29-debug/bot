@@ -272,6 +272,7 @@ module.exports = (bot) => {
                 const kb = [
                     [{ text: '📺 Earn 3 Credits', callback_data: `watch_${code}` }],
                     [{ text: '🔗 Earn 5 Credits', callback_data: `short_${code}` }],
+                    [{ text: '💎 Buy Credits (VIP)', callback_data: 'get_vip' }],
                     [{ text: '🔙 Back', callback_data: 'main' }]
                 ];
 
@@ -342,6 +343,7 @@ module.exports = (bot) => {
             const kb = [
                 [{ text: '📺 Earn 3 Credits', callback_data: `watch_direct` }],
                 [{ text: '🔗 Earn 5 Credits', callback_data: `short_direct` }],
+                [{ text: '💎 Buy Credits (VIP)', callback_data: 'get_vip' }],
                 [{ text: '🔙 Back', callback_data: 'main' }]
             ];
 
