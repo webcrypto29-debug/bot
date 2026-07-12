@@ -7,51 +7,36 @@ const crypto = require('crypto');
 module.exports = (bot) => {
     // When user clicks "Verification" button from Unlock Page
     bot.action(/^short_(.*)$/, async (ctx) => {
-        const fileCode = ctx.match[1];
-        const userId = ctx.from.id;
-        const apiKey = config.shortlinkApiKey;
-        const isAdmin = config.adminIds.includes(userId);
-
-        if (!apiKey) {
-            if (isAdmin) {
-                return ctx.answerCbQuery("⚠️ Shortlink API not configured! Please set URLSHORTX_API_KEY or GPLINKS_API_KEY in .env", { show_alert: true });
-            } else {
-                return ctx.answerCbQuery("❌ This feature is currently unavailable.", { show_alert: false });
-            }
-        }
-
         try {
+            const fileCode = ctx.match[1];
+            const userId = ctx.from.id;
+
             // 1. Generate unique session ID
             const sessionId = crypto.randomBytes(8).toString('hex').toUpperCase();
 
             // 2. Create session in DB
             await db.createVerificationSession(sessionId, userId);
 
-            // 3. Generate UrlShortX link
-            // Redirects to bot start with 'v_<sessionId>_<fileCode>' payload
-            const botLink = `https://t.me/${config.botUsername}?start=v_${sessionId}_${fileCode}`;
-            const apiResp = await axios.get(`https://urlshortx.com/api?api=${apiKey}&url=${encodeURIComponent(botLink)}`);
+            // 3. Construct the Blogger Linkvertise Gateway URL
+            // Passing session, userId, fileCode, and botUsername
+            const verifyUrl = `https://monetagad5367.blogspot.com/p/reward.html?session=${sessionId}&userId=${userId}&file=${fileCode}&bot=${config.botUsername}&type=verify`;
 
-            if (apiResp.data.status === 'success' || apiResp.data.shortenedUrl) {
-                const shortUrl = apiResp.data.shortenedUrl || apiResp.data.url;
+            const text = `🔗 *Linkvertise Verification*\n\n` +
+                         `Complete this verification successfully to earn credits.\n` +
+                         `Credits are awarded only after successful completion.\n\n` +
+                         `⚠️ *Note:* Don't close the browser until you return to the bot.`;
 
-                const text = `🔗 *Linkvertise Verification*\n\n` +
-                             `Complete this verification successfully to earn credits.\n` +
-                             `Credits are awarded only after successful completion.\n\n` +
-                             `⚠️ *Note:* Don't close the browser until you return to the bot.`;
+            const kb = [
+                [{ text: '🔓 Open Verification', url: verifyUrl }],
+                [{ text: '✅ Verify Status', callback_data: `verify_${sessionId}_${fileCode}` }],
+                [{ text: '🔙 Cancel', callback_data: 'main' }]
+            ];
 
-                const kb = [
-                    [{ text: '🔓 Open Verification', url: shortUrl }],
-                    [{ text: '✅ Verify Status', callback_data: `verify_${sessionId}_${fileCode}` }],
-                    [{ text: '🔙 Cancel', callback_data: 'main' }]
-                ];
+            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+            await ctx.answerCbQuery();
 
-                await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
-            } else {
-                throw new Error("Shortlink API Failed");
-            }
         } catch (e) {
-            console.error(e);
+            console.error("Verification initiation error:", e);
             ctx.answerCbQuery("❌ Error generating link. Try again.", { show_alert: true });
         }
     });
