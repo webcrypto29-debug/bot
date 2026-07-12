@@ -45,6 +45,16 @@ app.get('/', (req, res) => res.send('Erica Portal: Online'));
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Ad Server listening on port ${PORT}`));
 
+// Automatic Cleanup Scheduler (Runs every 24 hours)
+const db = require('./services/db');
+setInterval(async () => {
+    try {
+        await db.cleanupExpiredData();
+    } catch (e) {
+        console.error("Cleanup Scheduler Error:", e.message);
+    }
+}, 24 * 60 * 60 * 1000); // 24 Hours in milliseconds
+
 bot.launch().then(() => {
     console.log(`✅ Erica Bot @${config.botUsername} is Live!`);
 });

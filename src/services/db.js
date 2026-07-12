@@ -295,6 +295,40 @@ const dbService = {
             generatedLinks: files.data().count,
             totalRevenue
         };
+    },
+
+    // Automatic Cleanup Task
+    async cleanupExpiredData() {
+        const now = new Date();
+        const cutoff = new Date(now.getTime() - (24 * 60 * 60 * 1000)); // 24 hours ago
+
+        console.log(`[Cleanup] Starting automatic cleanup task...`);
+
+        const tempCollections = ['sessions', 'ad_sessions'];
+        let deletedCount = 0;
+
+        for (const colName of tempCollections) {
+            try {
+                const snapshot = await db.collection(colName)
+                    .where('createdAt', '<', cutoff)
+                    .get();
+
+                if (snapshot.empty) continue;
+
+                const batch = db.batch();
+                snapshot.docs.forEach(doc => {
+                    batch.delete(doc.ref);
+                    deletedCount++;
+                });
+
+                await batch.commit();
+            } catch (error) {
+                console.error(`[Cleanup] Error cleaning ${colName}:`, error.message);
+            }
+        }
+
+        console.log(`[Cleanup] Finished. Deleted ${deletedCount} expired sessions.`);
+        return deletedCount;
     }
 };
 
