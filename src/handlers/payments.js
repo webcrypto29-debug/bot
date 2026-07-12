@@ -19,7 +19,7 @@ module.exports = (bot) => {
                     inline_keyboard: [
                         [{ text: `Monthly - ₹${config.vip.monthly} (${config.vip.monthlyCredits} Credits)`, callback_data: 'pay_monthly' }],
                         [{ text: `Yearly - ₹${config.vip.yearly} (${config.vip.yearlyCredits} Credits)`, callback_data: 'pay_yearly' }],
-                        [{ text: '🔙 Back', callback_data: 'user_back' }]
+                        [{ text: '🔙 Back', callback_data: 'main' }]
                     ]
                 }
             });
