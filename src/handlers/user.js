@@ -150,8 +150,8 @@ module.exports = (bot) => {
                         const result = await db.claimShortlinkReward(sessionId, userId);
                         if (result.success) {
                             const text = `✅ *Verification Completed*\n\n` +
-                                         `🎉 *+${result.amount} Credits Added*\n\n` +
-                                         `Your balance has been updated successfully.`;
+                                         `🎉 *+${result.amount} Credits Added Successfully*\n\n` +
+                                         `Your balance has been updated.`;
                             const kb = [];
                             if (fileCode !== 'direct') {
                                 kb.push([{ text: '📥 Continue Download', callback_data: `dl_${fileCode}` }]);
@@ -161,7 +161,7 @@ module.exports = (bot) => {
                             return ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
                         }
                     } catch (e) {
-                        if (e.message === 'COOLDOWN') return ctx.reply(`⏳ Cooldown active. Please wait.`);
+                        if (e.message === 'DAILY_LIMIT') return ctx.reply(`❌ You have already completed the verification once today. Please try again tomorrow.`);
                         if (['SESSION_NOT_FOUND', 'SESSION_EXPIRED', 'ALREADY_REWARDED'].includes(e.message)) {
                             await ctx.reply(`❌ Invalid or expired reward session.`);
                         } else {
@@ -173,9 +173,9 @@ module.exports = (bot) => {
                     try {
                         const result = await db.claimBloggerReward(sessionId, userId);
                         if (result.success) {
-                            const text = `✅ *Rewarded Ad Completed*\n\n` +
-                                         `🎉 *+${result.amount} Credits Added*\n\n` +
-                                         `Your balance has been updated successfully.`;
+                            const text = `✅ *Verification Completed*\n\n` +
+                                         `🎉 *+${result.amount} Credits Added Successfully*\n\n` +
+                                         `Your balance has been updated.`;
                             const kb = [];
                             if (fileCode !== 'direct') {
                                 kb.push([{ text: '📥 Continue Download', callback_data: `dl_${fileCode}` }]);

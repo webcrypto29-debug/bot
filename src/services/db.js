@@ -118,9 +118,12 @@ const dbService = {
             if (!uDoc.exists) throw new Error('USER_NOT_FOUND');
             const userData = uDoc.data();
 
-            // Cooldown Check (60s)
+            // Daily Limit Check for GPLinks (Once per 24 hours)
             const lastClaim = userData.lastVerificationClaim ? (userData.lastVerificationClaim.toDate ? userData.lastVerificationClaim.toDate() : new Date(userData.lastVerificationClaim)) : new Date(0);
-            if (now - lastClaim < 60000) throw new Error('COOLDOWN');
+            const now = new Date();
+            if (now - lastClaim < 86400000) { // 24 Hours = 86400000 ms
+                throw new Error('DAILY_LIMIT');
+            }
 
             t.update(sessionRef, { rewarded: true, status: 'completed', claimedAt: now });
             t.update(userRef, {
@@ -189,10 +192,6 @@ const dbService = {
             const uDoc = await t.get(userRef);
             if (!uDoc.exists) throw new Error('USER_NOT_FOUND');
             const userData = uDoc.data();
-
-            // Cooldown Check (60s)
-            const lastClaim = userData.lastAdClaim ? (userData.lastAdClaim.toDate ? userData.lastAdClaim.toDate() : new Date(userData.lastAdClaim)) : new Date(0);
-            if (now - lastClaim < 60000) throw new Error('COOLDOWN');
 
             t.update(sessionRef, {
                 rewarded: true,

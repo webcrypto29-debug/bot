@@ -11,15 +11,6 @@ module.exports = (bot) => {
             const baseUrl = config.baseUrl;
             const isAdmin = config.adminIds.includes(userId);
 
-            const user = await db.getUser(userId) || {};
-            const lastClaim = user.lastAdClaim ? (user.lastAdClaim.toDate ? user.lastAdClaim.toDate() : new Date(user.lastAdClaim)) : new Date(0);
-            const now = new Date();
-            const diff = Math.floor((60000 - (now - lastClaim)) / 1000);
-
-            if (diff > 0 && !isAdmin) {
-                return ctx.answerCbQuery(`⏳ Please wait ${diff} seconds before earning credits again.`, { show_alert: true });
-            }
-
             if (!config.monetagZoneId) {
                 if (isAdmin) {
                     return ctx.answerCbQuery("⚠️ MONETAG_ZONE_ID not set in .env!", { show_alert: true });
@@ -53,7 +44,7 @@ module.exports = (bot) => {
 
             const kb = [
                 isWebApp ? [{ text: '▶️ Watch Ad Now', web_app: { url: adUrl } }] : [{ text: '▶️ Watch Ad Now', url: adUrl }],
-                [{ text: '🔙 Cancel', callback_data: 'main' }]
+                [{ text: '🔙 Back', callback_data: 'earn_credits' }]
             ];
 
             await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });

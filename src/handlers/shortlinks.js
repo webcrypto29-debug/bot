@@ -16,10 +16,11 @@ module.exports = (bot) => {
             const user = await db.getUser(userId) || {};
             const lastClaim = user.lastVerificationClaim ? (user.lastVerificationClaim.toDate ? user.lastVerificationClaim.toDate() : new Date(user.lastVerificationClaim)) : new Date(0);
             const now = new Date();
-            const diff = Math.floor((60000 - (now - lastClaim)) / 1000);
+            const diff = now - lastClaim;
 
-            if (diff > 0 && !isAdmin) {
-                return ctx.answerCbQuery(`⏳ Please wait ${diff} seconds before earning credits again.`, { show_alert: true });
+            if (diff < 86400000 && !isAdmin) { // 24 Hours
+                const hoursLeft = Math.ceil((86400000 - diff) / (1000 * 60 * 60));
+                return ctx.answerCbQuery(`❌ Daily limit reached! Please try again after ${hoursLeft} hours.`, { show_alert: true });
             }
 
             if (!apiKey) {
@@ -49,7 +50,7 @@ module.exports = (bot) => {
                 const kb = [
                     [{ text: '🔓 Open Verification', url: shortUrl }],
                     [{ text: '✅ Verify Status', callback_data: `verify_${sessionId}_${fileCode}` }],
-                    [{ text: '🔙 Cancel', callback_data: 'main' }]
+                    [{ text: '🔙 Back', callback_data: 'earn_credits' }]
                 ];
 
                 await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });

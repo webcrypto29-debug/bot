@@ -46,7 +46,7 @@ const config = {
 
     // Rewards & Cost
     rewards: {
-        shortlink: 7,
+        shortlink: 5,
         adReward: 3,        // Credits given for one rewarded ad
         costPerDownload: 1
     }
