@@ -27,8 +27,8 @@ module.exports = (bot) => {
             [{ text: '🔙 Back to User Menu', callback_data: 'main' }]
         ];
 
-        if (isEdit) return ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } }).catch(() => {});
-        return ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+        if (isEdit) return ctx.editMessageText(text, { parse_mode: 'HTML', reply_markup: { inline_keyboard: kb } }).catch(() => {});
+        return ctx.reply(text, { parse_mode: 'HTML', reply_markup: { inline_keyboard: kb } });
     };
 
     bot.action('admin', adminCheck, (ctx) => showAdminPanel(ctx, true));
@@ -42,7 +42,7 @@ module.exports = (bot) => {
                      `📥 Total Downloads: \`${stats.totalDownloads}\`\n` +
                      `🔗 Generated Links: \`${stats.generatedLinks}\``;
 
-        await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: [[{ text: '🔙 Back', callback_data: 'admin' }]] } });
+        await ctx.editMessageText(text, { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '🔙 Back', callback_data: 'admin' }]] } });
     });
 
     bot.action('admin_settings', adminCheck, async (ctx) => {
@@ -61,7 +61,7 @@ module.exports = (bot) => {
                 [{ text: '🔙 Back', callback_data: 'admin' }]
             ];
 
-            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+            await ctx.editMessageText(text, { parse_mode: 'HTML', reply_markup: { inline_keyboard: kb } });
         } catch (e) {
             console.error("Settings menu error:", e);
         }
@@ -86,7 +86,7 @@ module.exports = (bot) => {
                 [{ text: '✅ Approve', callback_data: `approve_pay_${p.id}` }, { text: '❌ Decline', callback_data: `decline_pay_${p.id}` }],
                 [{ text: '🔙 Back', callback_data: 'admin' }]
             ];
-            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+            await ctx.editMessageText(text, { parse_mode: 'HTML', reply_markup: { inline_keyboard: kb } });
         } catch (e) {
             console.error("Admin payments error:", e);
         }
@@ -101,7 +101,7 @@ module.exports = (bot) => {
             await db.approvePayment(payId);
 
             // Notification to user
-            bot.telegram.sendMessage(p.userId, `🎉 *Payment Approved!*\n\nYour *${p.plan} VIP* status is now active. Enjoy!`, { parse_mode: 'Markdown' }).catch(() => {});
+            bot.telegram.sendMessage(p.userId, `🎉 *Payment Approved!*\n\nYour *${p.plan} VIP* status is now active. Enjoy!`, { parse_mode: 'HTML' }).catch(() => {});
 
             ctx.answerCbQuery("✅ Payment Approved!");
             return showAdminPanel(ctx, true);
@@ -140,7 +140,7 @@ module.exports = (bot) => {
     bot.action('admin_gen_link', adminCheck, async (ctx) => {
         adminStates.set(ctx.from.id, { step: 'AWAITING_FILE' });
         await ctx.editMessageText('📑 *Generate Link*\n\nForward **one file** from your storage channel now.', {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             reply_markup: { inline_keyboard: [[{ text: '❌ Cancel', callback_data: 'admin' }]] }
         });
     });
@@ -149,7 +149,7 @@ module.exports = (bot) => {
     bot.action('admin_gen_batch', adminCheck, async (ctx) => {
         adminStates.set(ctx.from.id, { step: 'AWAITING_BATCH', files: [] });
         await ctx.editMessageText('📦 *Generate Batch*\n\nForward multiple files from storage.\n\nWhen finished, send `/done`.', {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             reply_markup: { inline_keyboard: [[{ text: '❌ Cancel', callback_data: 'admin' }]] }
         });
     });
@@ -158,7 +158,7 @@ module.exports = (bot) => {
     bot.action('admin_broadcast', adminCheck, async (ctx) => {
         adminStates.set(ctx.from.id, { step: 'AWAITING_BROADCAST' });
         await ctx.editMessageText('📢 *Broadcast System*\n\nSend the message you want to broadcast to all users.', {
-            parse_mode: 'Markdown',
+            parse_mode: 'HTML',
             reply_markup: { inline_keyboard: [[{ text: '❌ Cancel', callback_data: 'admin' }]] }
         });
     });
@@ -207,7 +207,7 @@ module.exports = (bot) => {
             }
 
             adminStates.delete(userId);
-            return ctx.reply(`📢 *Broadcast Finished*\n\n✅ Success: \`${success}\`\n❌ Failed: \`${failed}\`\n👥 Total: \`${users.length}\``, { parse_mode: 'Markdown' });
+            return ctx.reply(`📢 *Broadcast Finished*\n\n✅ Success: \`${success}\`\n❌ Failed: \`${failed}\`\n👥 Total: \`${users.length}\``, { parse_mode: 'HTML' });
         }
 
         // 2. Batch Logic /done
@@ -217,7 +217,7 @@ module.exports = (bot) => {
                 const code = generateCode('BATCH_');
                 await db.saveBatch(code, state.files, userId);
                 adminStates.delete(userId);
-                return ctx.reply(`✅ *Batch Link Generated*\n\n🔗 https://t.me/${config.botUsername}?start=${code}`, { parse_mode: 'Markdown' });
+                return ctx.reply(`✅ *Batch Link Generated*\n\n🔗 https://t.me/${config.botUsername}?start=${code}`, { parse_mode: 'HTML' });
             } catch (e) {
                 console.error("Batch Gen Error:", e);
                 return ctx.reply("❌ Error generating batch link.");
@@ -242,7 +242,7 @@ module.exports = (bot) => {
             const code = generateCode();
             await db.saveFile(code, fileData);
             adminStates.delete(ctx.from.id);
-            return ctx.reply(`✅ *Link Generated Successfully*\n\n🔗 https://t.me/${config.botUsername}?start=${code}`, { parse_mode: 'Markdown' });
+            return ctx.reply(`✅ *Link Generated Successfully*\n\n🔗 https://t.me/${config.botUsername}?start=${code}`, { parse_mode: 'HTML' });
         }
 
         if (state.step === 'AWAITING_BATCH') {
