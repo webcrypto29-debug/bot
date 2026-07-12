@@ -16,6 +16,33 @@ module.exports = (bot) => {
         return prefix + crypto.randomBytes(4).toString('hex').toUpperCase();
     };
 
+    // Helper to extract file data from message
+    const getFileData = (msg) => {
+        const file = msg.document || msg.video || msg.audio || (msg.photo ? msg.photo[msg.photo.length - 1] : null);
+        if (!file) return null;
+
+        return {
+            file_id: file.file_id,
+            file_name: file.file_name || msg.caption || 'Unnamed File',
+            file_size: file.file_size || 0,
+            file_type: msg.document ? 'doc' : (msg.video ? 'vid' : (msg.audio ? 'aud' : (msg.photo ? 'img' : 'doc'))),
+            upload_time: new Date(),
+            messageId: msg.message_id,
+            caption: msg.caption || ''
+        };
+    };
+
+    // Helper to parse Telegram Message Links
+    const parseTelegramLink = (url) => {
+        const publicMatch = url.match(/https?:\/\/t\.me\/([a-zA-Z0-9_]+)\/(\d+)/);
+        if (publicMatch) return { chatId: publicMatch[1].startsWith('@') ? publicMatch[1] : `@${publicMatch[1]}`, messageId: parseInt(publicMatch[2]) };
+
+        const privateMatch = url.match(/https?:\/\/t\.me\/c\/(\d+)\/(\d+)/);
+        if (privateMatch) return { chatId: `-100${privateMatch[1]}`, messageId: parseInt(privateMatch[2]) };
+
+        return null;
+    };
+
     // Main Admin Dashboard
     const showAdminPanel = async (ctx, isEdit = false) => {
         const text = `🛠 *Admin Dashboard*\n\nWelcome Master, choose an action:`;
@@ -224,25 +251,30 @@ module.exports = (bot) => {
             }
         }
 
-        const file = msg.document || msg.video || msg.audio || (msg.photo ? msg.photo[msg.photo.length-1] : null);
+        let fileData = getFileData(msg);
 
-        if (!file) return;
+        // 3. Telegram Link Processing
+        if (!fileData && msg.text && (state.step === 'AWAITING_FILE' || state.step === 'AWAITING_BATCH')) {
+            const linkData = parseTelegramLink(msg.text);
+            if (linkData) {
+                try {
+                    const tempMsg = await ctx.telegram.copyMessage(ctx.from.id, linkData.chatId, linkData.messageId, { disable_notification: true });
+                    fileData = getFileData(tempMsg);
+                    await ctx.telegram.deleteMessage(ctx.from.id, tempMsg.message_id);
+                    if (!fileData) return ctx.reply("❌ This message link does not contain a supported file.");
+                } catch (e) {
+                    return ctx.reply("❌ Invalid Telegram message link or Bot is not an admin in that channel.");
+                }
+            }
+        }
 
-        const fileData = {
-            file_id: file.file_id,
-            file_name: file.file_name || msg.caption || 'Unnamed File',
-            file_size: file.file_size || 0,
-            file_type: msg.document ? 'doc' : (msg.video ? 'vid' : (msg.audio ? 'aud' : (msg.photo ? 'img' : 'doc'))),
-            upload_time: new Date(),
-            messageId: msg.message_id,
-            caption: msg.caption || ''
-        };
+        if (!fileData) return;
 
         if (state.step === 'AWAITING_FILE') {
             const code = generateCode();
             await db.saveFile(code, fileData);
-            adminStates.delete(ctx.from.id);
-            return ctx.reply(`✅ *Link Generated Successfully*\n\n🔗 https://t.me/${config.botUsername}?start=${code}`, { parse_mode: 'HTML' });
+            adminStates.delete(userId);
+            return ctx.reply(`✅ Link Generated Successfully\n\n🔗 https://t.me/${config.botUsername}?start=${code}`, { parse_mode: 'HTML' });
         }
 
         if (state.step === 'AWAITING_BATCH') {
