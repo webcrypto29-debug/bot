@@ -127,13 +127,14 @@ module.exports = (bot) => {
 
             await db.approvePayment(payId);
 
-            // Add 500 Credits to User as per FINAL Update
-            await db.updateCredits(p.userId, 500);
+            // Add Credits based on Plan
+            const creditsToAdd = p.plan === 'Monthly' ? config.vip.monthlyCredits : config.vip.yearlyCredits;
+            await db.updateCredits(p.userId, creditsToAdd);
 
             // Notification to user
-            bot.telegram.sendMessage(p.userId, `🎉 *Payment Approved!*\n\nYour account has been credited with *500 Credits*. Enjoy!`, { parse_mode: 'HTML' }).catch(() => {});
+            bot.telegram.sendMessage(p.userId, `🎉 *Payment Approved!*\n\nYour account has been credited with *${creditsToAdd} Credits*. Enjoy!`, { parse_mode: 'HTML' }).catch(() => {});
 
-            ctx.answerCbQuery("✅ Payment Approved! 500 Credits added.");
+            ctx.answerCbQuery(`✅ Payment Approved! ${creditsToAdd} Credits added.`);
             return showAdminPanel(ctx, true);
         } catch (e) {
             console.error("Approve payment error:", e);

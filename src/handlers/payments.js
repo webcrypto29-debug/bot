@@ -13,12 +13,12 @@ module.exports = (bot) => {
     // Show VIP Tiers
     bot.action('get_vip', async (ctx) => {
         try {
-            await ctx.editMessageText('💎 *Choose your VIP Plan*\n\n✅ Ad-free experience\n✅ Direct link access\n✅ Priority support\n✅ Access to all files', {
+            await ctx.editMessageText(`💎 *Choose your VIP Plan*\n\n✅ Direct link access\n✅ Priority support\n✅ Access to all files\n\n🎁 *Monthly:* ₹${config.vip.monthly} (${config.vip.monthlyCredits} Credits)\n✨ *Yearly:* ₹${config.vip.yearly} (${config.vip.yearlyCredits} Credits)`, {
                 parse_mode: 'Markdown',
                 reply_markup: {
                     inline_keyboard: [
-                        [{ text: `Monthly VIP - ₹${config.vip.monthly}`, callback_data: 'pay_monthly' }],
-                        [{ text: `Yearly VIP - ₹${config.vip.yearly}`, callback_data: 'pay_yearly' }],
+                        [{ text: `Monthly - ₹${config.vip.monthly} (${config.vip.monthlyCredits} Credits)`, callback_data: 'pay_monthly' }],
+                        [{ text: `Yearly - ₹${config.vip.yearly} (${config.vip.yearlyCredits} Credits)`, callback_data: 'pay_yearly' }],
                         [{ text: '🔙 Back', callback_data: 'user_back' }]
                     ]
                 }

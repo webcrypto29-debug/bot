@@ -30,10 +30,12 @@ const config = {
     baseUrl: process.env.BASE_URL,             // Loaded from .env (e.g. https://xyz.serveo.net)
     shortlinkApiKey: process.env.URLSHORTX_API_KEY || process.env.GPLINKS_API_KEY,
 
-    // VIP Pricing
+    // VIP Pricing & Credits
     vip: {
         monthly: parseInt(process.env.VIP_MONTHLY) || 29,
-        yearly: parseInt(process.env.VIP_YEARLY) || 299
+        yearly: parseInt(process.env.VIP_YEARLY) || 299,
+        monthlyCredits: 80,
+        yearlyCredits: 500
     },
 
     // Payments
