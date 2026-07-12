@@ -35,7 +35,7 @@ module.exports = (bot) => {
             if (apiResp.data.status === 'success' || apiResp.data.shortenedUrl) {
                 const shortUrl = apiResp.data.shortenedUrl || apiResp.data.url;
 
-                const text = `🔗 *Verification Required*\n\n` +
+                const text = `🔗 *Linkvertise Verification*\n\n` +
                              `Complete this verification successfully to earn credits.\n` +
                              `Credits are awarded only after successful completion.\n\n` +
                              `⚠️ *Note:* Don't close the browser until you return to the bot.`;

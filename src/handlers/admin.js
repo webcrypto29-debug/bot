@@ -127,10 +127,13 @@ module.exports = (bot) => {
 
             await db.approvePayment(payId);
 
-            // Notification to user
-            bot.telegram.sendMessage(p.userId, `🎉 *Payment Approved!*\n\nYour *${p.plan} VIP* status is now active. Enjoy!`, { parse_mode: 'HTML' }).catch(() => {});
+            // Add 500 Credits to User as per FINAL Update
+            await db.updateCredits(p.userId, 500);
 
-            ctx.answerCbQuery("✅ Payment Approved!");
+            // Notification to user
+            bot.telegram.sendMessage(p.userId, `🎉 *Payment Approved!*\n\nYour account has been credited with *500 Credits*. Enjoy!`, { parse_mode: 'HTML' }).catch(() => {});
+
+            ctx.answerCbQuery("✅ Payment Approved! 500 Credits added.");
             return showAdminPanel(ctx, true);
         } catch (e) {
             console.error("Approve payment error:", e);

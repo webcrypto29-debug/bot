@@ -139,8 +139,8 @@ module.exports = (bot) => {
                     try {
                         const result = await db.claimShortlinkReward(sessionId, userId);
                         if (result.success) {
-                            const text = `✅ *Congratulations!*\n\n` +
-                                         `🎉 You earned +${result.amount} Credits\n\n` +
+                            const text = `✅ *Verification Completed*\n\n` +
+                                         `🎉 *+${result.amount} Credits Added*\n\n` +
                                          `Your balance has been updated successfully.`;
                             const kb = [];
                             if (fileCode !== 'direct') {
@@ -162,8 +162,8 @@ module.exports = (bot) => {
                     try {
                         const result = await db.claimBloggerReward(sessionId, userId);
                         if (result.success) {
-                            const text = `✅ *Congratulations!*\n\n` +
-                                         `🎉 You earned +${result.amount} Credits\n\n` +
+                            const text = `✅ *Rewarded Ad Completed*\n\n` +
+                                         `🎉 *+${result.amount} Credits Added*\n\n` +
                                          `Your balance has been updated successfully.`;
                             const kb = [];
                             if (fileCode !== 'direct') {
@@ -241,36 +241,35 @@ module.exports = (bot) => {
 
             if (user.credits < settings.downloadCost && !isAdmin && !isVip) {
                 const text = `💰 *Earn Download Credits*\n\n` +
-                             `Complete ANY ONE option below to continue downloading.\n\n` +
-                             `━━━━━━━━━━━━━━━━━━━━\n` +
-                             `⭐ *RECOMMENDED*\n` +
-                             `⚡ *Fastest & Easiest*\n\n` +
-                             `📺 *Watch Rewarded Ad*\n` +
-                             `✔ Takes around 15 seconds\n` +
-                             `🎁 *Reward:* +${settings.rewardAd || 3} Credits\n\n` +
+                             `Choose ANY ONE method below.\n\n` +
+                             `These are two separate methods.\n` +
+                             `You *DO NOT* need to complete both.\n\n` +
+                             `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                             `⭐ *FASTEST METHOD*\n` +
+                             `📺 *Watch Rewarded Ad*\n\n` +
+                             `⏱ About 15 seconds\n` +
+                             `🎁 *Reward:* +3 Credits\n\n` +
                              `Watch one rewarded advertisement completely.\n` +
-                             `Credits are added automatically after successful completion.\n\n` +
-                             `📺 *Earn ${settings.rewardAd || 3} Credits*\n` +
-                             `🟢 Most users choose this option\n` +
+                             `Credits will be added automatically after the ad finishes.\n\n` +
+                             `[ 📺 Earn 3 Credits ]\n` +
+                             `🟢 *Instant Credit*\n\n` +
                              `━━━━━━━━━━━━━━━━━━━━\n\n` +
-                             `────────── *OR* ──────────\n\n` +
-                             `━━━━━━━━━━━━━━━━━━━━\n` +
-                             `🔗 *Complete Verification*\n` +
-                             `⏱ Takes around 20–40 seconds\n` +
-                             `🎁 *Reward:* +${settings.rewardVerification || 5} Credits\n\n` +
-                             `Complete one verification successfully.\n` +
-                             `Credits are added automatically after verification.\n\n` +
-                             `🔗 *Earn ${settings.rewardVerification || 5} Credits*\n` +
+                             `──────── *OR* ────────\n\n` +
                              `━━━━━━━━━━━━━━━━━━━━\n\n` +
-                             `💡 *Tip*\n` +
-                             `Rewarded Ads are the fastest and easiest way to earn credits.\n` +
-                             `Use Verification only if Rewarded Ads are temporarily unavailable.\n\n` +
-                             `Need more downloads?\n` +
-                             `Earn credits using ANY option above.`;
+                             `🔗 *Complete Linkvertise Verification*\n\n` +
+                             `⏱ About 20–40 seconds\n` +
+                             `🎁 *Reward:* +5 Credits\n\n` +
+                             `Complete ONE Linkvertise verification.\n` +
+                             `Credits will be added automatically after successful completion.\n\n` +
+                             `[ 🔗 Earn 5 Credits ]\n` +
+                             `🔵 *Verification Required*\n\n` +
+                             `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                             `*Notice:* You only need to complete ONE option.\n` +
+                             `Both methods give download credits.`;
 
                 const kb = [
-                    [{ text: `📺 Watch Rewarded Ad`, callback_data: `watch_${code}` }],
-                    [{ text: `🔗 Complete Verification`, callback_data: `short_${code}` }],
+                    [{ text: '📺 Earn 3 Credits', callback_data: `watch_${code}` }],
+                    [{ text: '🔗 Earn 5 Credits', callback_data: `short_${code}` }],
                     [{ text: '🔙 Back', callback_data: 'main' }]
                 ];
 
@@ -301,36 +300,35 @@ module.exports = (bot) => {
         try {
             const settings = await db.getGlobalSettings();
             const text = `💰 *Earn Download Credits*\n\n` +
-                         `Complete ANY ONE option below to continue downloading.\n\n` +
-                         `━━━━━━━━━━━━━━━━━━━━\n` +
-                         `⭐ *RECOMMENDED*\n` +
-                         `⚡ *Fastest & Easiest*\n\n` +
-                         `📺 *Watch Rewarded Ad*\n` +
-                         `✔ Takes around 15 seconds\n` +
-                         `🎁 *Reward:* +${settings.rewardAd || 3} Credits\n\n` +
+                         `Choose ANY ONE method below.\n\n` +
+                         `These are two separate methods.\n` +
+                         `You *DO NOT* need to complete both.\n\n` +
+                         `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                         `⭐ *FASTEST METHOD*\n` +
+                         `📺 *Watch Rewarded Ad*\n\n` +
+                         `⏱ About 15 seconds\n` +
+                         `🎁 *Reward:* +3 Credits\n\n` +
                          `Watch one rewarded advertisement completely.\n` +
-                         `Credits are added automatically after successful completion.\n\n` +
-                         `📺 *Earn ${settings.rewardAd || 3} Credits*\n` +
-                         `🟢 Most users choose this option\n` +
+                         `Credits will be added automatically after the ad finishes.\n\n` +
+                         `[ 📺 Earn 3 Credits ]\n` +
+                         `🟢 *Instant Credit*\n\n` +
                          `━━━━━━━━━━━━━━━━━━━━\n\n` +
-                         `────────── *OR* ──────────\n\n` +
-                         `━━━━━━━━━━━━━━━━━━━━\n` +
-                         `🔗 *Complete Verification*\n` +
-                         `⏱ Takes around 20–40 seconds\n` +
-                         `🎁 *Reward:* +${settings.rewardVerification || 5} Credits\n\n` +
-                         `Complete one verification successfully.\n` +
-                         `Credits are added automatically after verification.\n\n` +
-                         `🔗 *Earn ${settings.rewardVerification || 5} Credits*\n` +
+                         `──────── *OR* ────────\n\n` +
                          `━━━━━━━━━━━━━━━━━━━━\n\n` +
-                         `💡 *Tip*\n` +
-                         `Rewarded Ads are the fastest and easiest way to earn credits.\n` +
-                         `Use Verification only if Rewarded Ads are temporarily unavailable.\n\n` +
-                         `Need more downloads?\n` +
-                         `Earn credits using ANY option above.`;
+                         `🔗 *Complete Linkvertise Verification*\n\n` +
+                         `⏱ About 20–40 seconds\n` +
+                         `🎁 *Reward:* +5 Credits\n\n` +
+                         `Complete ONE Linkvertise verification.\n` +
+                         `Credits will be added automatically after successful completion.\n\n` +
+                         `[ 🔗 Earn 5 Credits ]\n` +
+                         `🔵 *Verification Required*\n\n` +
+                         `━━━━━━━━━━━━━━━━━━━━\n\n` +
+                         `*Notice:* You only need to complete ONE option.\n` +
+                         `Both methods give download credits.`;
 
             const kb = [
-                [{ text: '📺 Watch Rewarded Ad', callback_data: `watch_direct` }],
-                [{ text: '🔗 Complete Verification', callback_data: `short_direct` }],
+                [{ text: '📺 Earn 3 Credits', callback_data: `watch_direct` }],
+                [{ text: '🔗 Earn 5 Credits', callback_data: `short_direct` }],
                 [{ text: '🔙 Back', callback_data: 'main' }]
             ];
 
