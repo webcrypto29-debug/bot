@@ -127,27 +127,27 @@ module.exports = (bot) => {
                 createdAt: new Date()
             });
 
-            userPaymentProcess.delete(ctx.from.id);
+            // Notify Admin (As per Requirements)
+            const adminMsg = `💎 *New VIP Payment Request*\n\n` +
+                             `👤 *User:* ${ctx.from.first_name}\n` +
+                             `📧 *Username:* @${ctx.from.username || 'N/A'}\n` +
+                             `🆔 *ID:* \`${ctx.from.id}\`\n` +
+                             `📝 *Transaction ID:* \`${transactionId}\`\n` +
+                             `📅 *Time:* ${new Date().toLocaleString()}`;
 
-            await ctx.reply(`✅ *Payment Submitted!*\n\nReference: \`${payId}\`\n\nAdmin is verifying your payment. You will get a notification once activated.`, {
-                parse_mode: 'Markdown'
+            config.adminIds.forEach(adminId => {
+                bot.telegram.sendMessage(adminId, adminMsg, {
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [[{ text: '🛠 Verify in Admin Panel', callback_data: 'admin_payments' }]]
+                    }
+                }).catch(e => logger.error(`Admin notify failed for ${adminId}:`, e));
             });
 
-            // Notify Admin (IMPORTANT)
-            config.adminIds.forEach(adminId => {
-                bot.telegram.sendMessage(adminId,
-                    `💰 *NEW PAYMENT REQUEST*\n\n` +
-                    `👤 User: ${ctx.from.first_name} (\`${ctx.from.id}\`)\n` +
-                    `💎 Plan: ${state.plan} VIP\n` +
-                    `💵 Amount: ₹${amount}\n` +
-                    `🆔 ID: \`${transactionId}\``,
-                    {
-                        parse_mode: 'Markdown',
-                        reply_markup: {
-                            inline_keyboard: [[{ text: '🛠 Verify in Admin Panel', callback_data: 'admin_payments' }]]
-                        }
-                    }
-                ).catch(e => logger.error(`Admin notify failed for ${adminId}:`, e));
+            userPaymentProcess.delete(ctx.from.id);
+
+            await ctx.reply(`✅ *Transaction submitted successfully.*\nAdmin will verify it soon.`, {
+                parse_mode: 'Markdown'
             });
 
         } catch (error) {

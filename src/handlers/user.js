@@ -31,6 +31,25 @@ module.exports = (bot) => {
         }
     };
 
+    const deliverFileOrBatch = async (ctx, code, userId, settings, isAdmin) => {
+        const file = await db.getFile(code);
+        if (!file) return ctx.reply("❌ File not found!");
+
+        let success = false;
+        if (file.isBatch) {
+            for (const f of file.files) await sendFile(ctx, f);
+            success = true;
+        } else {
+            success = await sendFile(ctx, file);
+        }
+
+        if (success && !isAdmin) {
+            await creditService.spendCredits(userId, settings.downloadCost);
+            await db.recordDownload(userId, code);
+        }
+        return success;
+    };
+
     const showDownloadPage = async (ctx, payload) => {
         const file = await db.getFile(payload);
         if (!file) return ctx.reply("❌ Invalid link.");
@@ -75,6 +94,13 @@ module.exports = (bot) => {
                         await creditService.addCredits(userId, settings.rewardVerification);
                         await db.updateSession(sessionId, { rewarded: true, status: true });
                         await ctx.reply(`✅ *Verification Success!*\n\nCredits added.`, { parse_mode: 'Markdown' });
+
+                        // Auto-Download Check
+                        const user = await db.getUser(userId);
+                        const isAdmin = config.adminIds.includes(userId);
+                        if (fileCode !== 'direct' && (user.credits >= settings.downloadCost || isAdmin)) {
+                            return deliverFileOrBatch(ctx, fileCode, userId, settings, isAdmin);
+                        }
                         if (fileCode !== 'direct') return showDownloadPage(ctx, fileCode);
                     }
                 } else if (type === 'reward') {
@@ -82,6 +108,14 @@ module.exports = (bot) => {
                         const result = await db.claimBloggerReward(sessionId, userId);
                         if (result.success) {
                             await ctx.reply(`✅ *Reward verified successfully.*\n\n🎉 Credits added.`, { parse_mode: 'Markdown' });
+
+                            // Auto-Download Check
+                            const user = await db.getUser(userId);
+                            const settings = await db.getGlobalSettings();
+                            const isAdmin = config.adminIds.includes(userId);
+                            if (fileCode !== 'direct' && (user.credits >= settings.downloadCost || isAdmin)) {
+                                return deliverFileOrBatch(ctx, fileCode, userId, settings, isAdmin);
+                            }
                             if (fileCode !== 'direct') return showDownloadPage(ctx, fileCode);
                         }
                     } catch (e) {
@@ -149,31 +183,37 @@ module.exports = (bot) => {
 
             const user = await db.getUser(userId) || { credits: 0 };
             if (user.credits < settings.downloadCost && !isAdmin) {
-                return ctx.answerCbQuery("❌ Insufficient Credits!", { show_alert: true });
+                const text = `━━━━━━━━━━━━━━━━━━\n` +
+                             `❌ *Insufficient Credits*\n\n` +
+                             `You need credits to download files.\n\n` +
+                             `*Earn Credits*\n\n` +
+                             `🔗 *Verification Link*\n` +
+                             `Reward:\n` +
+                             `+2 Credits\n\n` +
+                             `Complete the verification to earn credits.\n\n` +
+                             `------------------------\n\n` +
+                             `📺 *Watch Rewarded Ad*\n` +
+                             `Reward:\n` +
+                             `+3 Credits\n\n` +
+                             `Watch the full rewarded ad.\n\n` +
+                             `━━━━━━━━━━━━━━━━━━`;
+
+                const kb = [
+                    [{ text: '🔓 Start Verification', callback_data: `short_${code}` }],
+                    [{ text: '📺 Watch Ad', callback_data: `watch_${code}` }],
+                    [{ text: '🔙 Back', callback_data: 'main' }]
+                ];
+
+                return ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
             }
 
-        const file = await db.getFile(code);
-        if (!file) return ctx.answerCbQuery("❌ File not found!");
-
-        await ctx.answerCbQuery("✅ Delivering directly from Telegram...");
-
-        let success = false;
-        if (file.isBatch) {
-            for (const f of file.files) await sendFile(ctx, f);
-            success = true;
-        } else {
-            success = await sendFile(ctx, file);
+            await ctx.answerCbQuery("✅ Delivering directly from Telegram...");
+            await deliverFileOrBatch(ctx, code, userId, settings, isAdmin);
+        } catch (e) {
+            console.error("Download action error:", e);
+            ctx.answerCbQuery("❌ Error processing download.");
         }
-
-        if (success && !isAdmin) {
-            await creditService.spendCredits(userId, settings.downloadCost);
-            await db.recordDownload(userId, code);
-        }
-    } catch (e) {
-        console.error("Download action error:", e);
-        ctx.answerCbQuery("❌ Error processing download.");
-    }
-});
+    });
 
     bot.action('main', async (ctx) => {
         try {

@@ -21,8 +21,8 @@ module.exports = (bot) => {
             await db.createVerificationSession(sessionId, userId);
 
             // 3. Generate UrlShortX link
-            // Redirects to bot start with 'v_<sessionId>' payload
-            const botLink = `https://t.me/${config.botUsername}?start=v_${sessionId}`;
+            // Redirects to bot start with 'v_<sessionId>_<fileCode>' payload
+            const botLink = `https://t.me/${config.botUsername}?start=v_${sessionId}_${fileCode}`;
             const apiResp = await axios.get(`https://urlshortx.com/api?api=${apiKey}&url=${encodeURIComponent(botLink)}`);
 
             if (apiResp.data.status === 'success' || apiResp.data.shortenedUrl) {

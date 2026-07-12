@@ -164,20 +164,31 @@ module.exports = (bot) => {
     });
 
     // --- Handler for Messages (Awaiting States) ---
-    bot.on(['message', 'document', 'video', 'audio', 'photo'], adminCheck, async (ctx, next) => {
-        const state = adminStates.get(ctx.from.id);
+    bot.on(['message', 'document', 'video', 'audio', 'photo'], async (ctx, next) => {
+        const userId = ctx.from.id;
+        const state = adminStates.get(userId);
+
+        // If no state, let other handlers process it (important for users sending Transaction IDs)
         if (!state) return next();
 
+        // Security: Ensure only admins can trigger active admin states
+        if (!config.adminIds.includes(userId)) {
+            adminStates.delete(userId);
+            return next();
+        }
+
+        const msg = ctx.message;
+
         // Settings updates
-        if (state.step.startsWith('SET_')) {
-            const val = parseInt(ctx.message.text);
+        if (msg.text && state.step.startsWith('SET_')) {
+            const val = parseInt(msg.text);
             if (isNaN(val)) return ctx.reply("❌ Invalid number. Please send a numeric value.");
 
             if (state.step === 'SET_REWARD_VERIFY') await db.updateGlobalSettings({ rewardVerification: val });
             if (state.step === 'SET_REWARD_AD') await db.updateGlobalSettings({ rewardAd: val });
             if (state.step === 'SET_DOWNLOAD_COST') await db.updateGlobalSettings({ downloadCost: val });
 
-            adminStates.delete(ctx.from.id);
+            adminStates.delete(userId);
             return ctx.reply("✅ Setting updated successfully!");
         }
 
@@ -188,30 +199,31 @@ module.exports = (bot) => {
 
             const statusMsg = await ctx.reply(`🚀 Broadcasting to ${users.length} users...`);
 
-            for (const userId of users) {
+            for (const targetId of users) {
                 try {
-                    await ctx.copyMessage(userId);
+                    await ctx.copyMessage(targetId);
                     success++;
                 } catch (e) { failed++; }
             }
 
-            adminStates.delete(ctx.from.id);
+            adminStates.delete(userId);
             return ctx.reply(`📢 *Broadcast Finished*\n\n✅ Success: \`${success}\`\n❌ Failed: \`${failed}\`\n👥 Total: \`${users.length}\``, { parse_mode: 'Markdown' });
         }
 
         // 2. Batch Logic /done
-        if (ctx.message.text === '/done' && state.step === 'AWAITING_BATCH') {
-            if (state.files.length === 0) return ctx.reply("❌ Batch is empty.");
-
-            const code = generateCode('BATCH_');
-            await db.saveBatch(code, state.files, ctx.from.id);
-
-            adminStates.delete(ctx.from.id);
-            return ctx.reply(`✅ *Batch Link Generated*\n\n🔗 https://t.me/${config.botUsername}?start=${code}`, { parse_mode: 'Markdown' });
+        if (msg.text === '/done' && state.step === 'AWAITING_BATCH') {
+            try {
+                if (!state.files || state.files.length === 0) return ctx.reply("❌ Batch is empty.");
+                const code = generateCode('BATCH_');
+                await db.saveBatch(code, state.files, userId);
+                adminStates.delete(userId);
+                return ctx.reply(`✅ *Batch Link Generated*\n\n🔗 https://t.me/${config.botUsername}?start=${code}`, { parse_mode: 'Markdown' });
+            } catch (e) {
+                console.error("Batch Gen Error:", e);
+                return ctx.reply("❌ Error generating batch link.");
+            }
         }
 
-        // 3. File Processing (Single or Batch)
-        const msg = ctx.message;
         const file = msg.document || msg.video || msg.audio || (msg.photo ? msg.photo[msg.photo.length-1] : null);
 
         if (!file) return;
