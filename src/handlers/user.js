@@ -292,7 +292,18 @@ module.exports = (bot) => {
             const text = `👋 *Welcome*\n\n💰 *Balance:* \`${user.credits} Credits\``;
             const kb = [[{ text: '👤 My Profile', callback_data: 'profile' }]];
             if (config.adminIds.includes(ctx.from.id)) kb.unshift([{ text: '🛠 Admin Panel', callback_data: 'admin' }]);
-            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+
+            try {
+                await ctx.editMessageText(text, {
+                    parse_mode: 'Markdown',
+                    reply_markup: { inline_keyboard: kb }
+                });
+            } catch (err) {
+                if (err.description && err.description.includes("message is not modified")) {
+                    return ctx.answerCbQuery();
+                }
+                throw err;
+            }
         } catch (e) {
             console.error("Main menu error:", e);
         }
@@ -334,7 +345,17 @@ module.exports = (bot) => {
                 [{ text: '🔙 Back', callback_data: 'main' }]
             ];
 
-            await ctx.editMessageText(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+            try {
+                await ctx.editMessageText(text, {
+                    parse_mode: 'Markdown',
+                    reply_markup: { inline_keyboard: kb }
+                });
+            } catch (err) {
+                if (err.description && err.description.includes("message is not modified")) {
+                    return ctx.answerCbQuery();
+                }
+                throw err;
+            }
         } catch (e) {
             console.error("Earn credits error:", e);
         }
