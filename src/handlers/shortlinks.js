@@ -10,6 +10,16 @@ module.exports = (bot) => {
         try {
             const fileCode = ctx.match[1];
             const userId = ctx.from.id;
+            const isAdmin = config.adminIds.includes(userId);
+
+            const user = await db.getUser(userId) || {};
+            const lastClaim = user.lastVerificationClaim ? (user.lastVerificationClaim.toDate ? user.lastVerificationClaim.toDate() : new Date(user.lastVerificationClaim)) : new Date(0);
+            const now = new Date();
+            const diff = Math.floor((60000 - (now - lastClaim)) / 1000);
+
+            if (diff > 0 && !isAdmin) {
+                return ctx.answerCbQuery(`⏳ Please wait ${diff} seconds before earning credits again.`, { show_alert: true });
+            }
 
             // 1. Generate unique session ID
             const sessionId = crypto.randomBytes(8).toString('hex').toUpperCase();

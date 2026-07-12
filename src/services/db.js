@@ -72,9 +72,18 @@ const dbService = {
     },
 
     // Verification Sessions
-    async createVerificationSession(sessionId, userId) {
+    async createVerificationSession(sessionId, userId, amount = 5) {
         const expiry = new Date(); expiry.setMinutes(expiry.getMinutes() + 30);
-        await db.collection('sessions').doc(sessionId).set({ sessionId, userId: userId.toString(), status: false, rewarded: false, createdAt: new Date(), expiresAt: expiry });
+        await db.collection('sessions').doc(sessionId).set({
+            sessionId,
+            userId: userId.toString(),
+            status: 'pending',
+            rewarded: false,
+            rewardType: 'verification',
+            rewardAmount: amount,
+            createdAt: new Date(),
+            expiresAt: expiry
+        });
     },
     async getSession(sessionId) {
         const doc = await db.collection('sessions').doc(sessionId).get();
@@ -90,6 +99,7 @@ const dbService = {
     async claimShortlinkReward(sessionId, userId) {
         const sessionRef = db.collection('sessions').doc(sessionId);
         const userRef = db.collection('users').doc(userId.toString());
+        const logRef = db.collection('reward_logs').doc();
         const settings = await this.getGlobalSettings();
         const rewardAmount = settings.rewardVerification || 5;
 
@@ -101,18 +111,32 @@ const dbService = {
             const now = new Date();
             const expiresAt = session.expiresAt.toDate ? session.expiresAt.toDate() : new Date(session.expiresAt);
 
-            if (session.rewarded) throw new Error('ALREADY_REWARDED');
+            if (session.rewarded || session.status === 'completed') throw new Error('ALREADY_REWARDED');
             if (now > expiresAt) throw new Error('SESSION_EXPIRED');
 
             const uDoc = await t.get(userRef);
             if (!uDoc.exists) throw new Error('USER_NOT_FOUND');
             const userData = uDoc.data();
 
-            t.update(sessionRef, { rewarded: true, status: true, rewardTime: now });
+            // Cooldown Check (60s)
+            const lastClaim = userData.lastVerificationClaim ? (userData.lastVerificationClaim.toDate ? userData.lastVerificationClaim.toDate() : new Date(userData.lastVerificationClaim)) : new Date(0);
+            if (now - lastClaim < 60000) throw new Error('COOLDOWN');
+
+            t.update(sessionRef, { rewarded: true, status: 'completed', claimedAt: now });
             t.update(userRef, {
                 credits: (userData.credits || 0) + rewardAmount,
                 totalEarned: (userData.totalEarned || 0) + rewardAmount,
-                lastUpdate: now
+                lastUpdate: now,
+                lastVerificationClaim: now
+            });
+
+            t.set(logRef, {
+                userId: userId.toString(),
+                rewardType: 'verification',
+                rewardAmount: rewardAmount,
+                sessionId: sessionId,
+                status: 'success',
+                timestamp: now
             });
 
             return { success: true, amount: rewardAmount };
@@ -120,25 +144,34 @@ const dbService = {
     },
 
     // Ad Sessions
-    async createAdSession(sessionId, userId) {
+    async createAdSession(sessionId, userId, amount = 3) {
         const expiry = new Date(); expiry.setMinutes(expiry.getMinutes() + 15);
-        await db.collection('ad_sessions').doc(sessionId).set({ sessionId, userId: userId.toString(), rewarded: false, createdAt: new Date(), expiresAt: expiry });
+        await db.collection('ad_sessions').doc(sessionId).set({
+            sessionId,
+            userId: userId.toString(),
+            status: 'pending',
+            rewarded: false,
+            rewardType: 'ad',
+            rewardAmount: amount,
+            createdAt: new Date(),
+            expiresAt: expiry
+        });
     },
     async getAdSession(sessionId) {
         const doc = await db.collection('ad_sessions').doc(sessionId).get();
         return doc.exists ? doc.data() : null;
     },
     async completeAdSession(sessionId) {
-        await db.collection('ad_sessions').doc(sessionId).update({ rewarded: true });
+        await db.collection('ad_sessions').doc(sessionId).update({ rewarded: true, status: 'completed' });
     },
 
     /**
      * Blogger Reward Transaction
-     * Handles verification, expiration, duplicate prevention, and credit addition in one atomic step.
      */
     async claimBloggerReward(sessionId, userId) {
         const sessionRef = db.collection('ad_sessions').doc(sessionId);
         const userRef = db.collection('users').doc(userId.toString());
+        const logRef = db.collection('reward_logs').doc();
         const settings = await this.getGlobalSettings();
         const rewardAmount = settings.rewardAd || 3;
 
@@ -150,26 +183,38 @@ const dbService = {
             const now = new Date();
             const expiresAt = session.expiresAt.toDate ? session.expiresAt.toDate() : new Date(session.expiresAt);
 
-            if (session.rewarded) throw new Error('ALREADY_REWARDED');
+            if (session.rewarded || session.status === 'completed') throw new Error('ALREADY_REWARDED');
             if (now > expiresAt) throw new Error('SESSION_EXPIRED');
 
             const uDoc = await t.get(userRef);
             if (!uDoc.exists) throw new Error('USER_NOT_FOUND');
-
             const userData = uDoc.data();
 
-            // 1. Update Session
+            // Cooldown Check (60s)
+            const lastClaim = userData.lastAdClaim ? (userData.lastAdClaim.toDate ? userData.lastAdClaim.toDate() : new Date(userData.lastAdClaim)) : new Date(0);
+            if (now - lastClaim < 60000) throw new Error('COOLDOWN');
+
             t.update(sessionRef, {
                 rewarded: true,
-                rewardTime: now,
+                status: 'completed',
+                claimedAt: now,
                 rewardSource: 'Blogger'
             });
 
-            // 2. Update User Credits
             t.update(userRef, {
                 credits: (userData.credits || 0) + rewardAmount,
                 totalEarned: (userData.totalEarned || 0) + rewardAmount,
-                lastUpdate: now
+                lastUpdate: now,
+                lastAdClaim: now
+            });
+
+            t.set(logRef, {
+                userId: userId.toString(),
+                rewardType: 'ad',
+                rewardAmount: rewardAmount,
+                sessionId: sessionId,
+                status: 'success',
+                timestamp: now
             });
 
             return { success: true, amount: rewardAmount };
