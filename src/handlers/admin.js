@@ -261,10 +261,21 @@ module.exports = (bot) => {
                     const tempMsg = await ctx.telegram.copyMessage(ctx.from.id, linkData.chatId, linkData.messageId, { disable_notification: true });
                     fileData = getFileData(tempMsg);
                     await ctx.telegram.deleteMessage(ctx.from.id, tempMsg.message_id);
-                    if (!fileData) return ctx.reply("❌ This message link does not contain a supported file.");
+                    // If Telegram link fetch fails to find a file, we treat it as a generic URL
                 } catch (e) {
-                    return ctx.reply("❌ Invalid Telegram message link or Bot is not an admin in that channel.");
+                    // Fail gracefully, will check generic URL logic below
                 }
+            }
+
+            // 4. Generic URL Processing
+            if (!fileData && msg.text.startsWith('http')) {
+                fileData = {
+                    file_name: msg.text.split('/').pop() || 'URL Link',
+                    file_type: 'url',
+                    original_url: msg.text,
+                    upload_time: new Date(),
+                    file_size: 0
+                };
             }
         }
 

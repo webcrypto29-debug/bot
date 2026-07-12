@@ -23,6 +23,10 @@ module.exports = (bot) => {
             if (file.file_type === 'vid') await ctx.replyWithVideo(file.file_id, opts);
             else if (file.file_type === 'aud') await ctx.replyWithAudio(file.file_id, opts);
             else if (file.file_type === 'img') await ctx.replyWithPhoto(file.file_id, opts);
+            else if (file.file_type === 'url') {
+                const kb = [[{ text: '📥 Open Original Link', url: file.original_url }]];
+                await ctx.reply(`🔗 *URL Link Ready*\n\nName: ${file.file_name}`, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
+            }
             else await ctx.replyWithDocument(file.file_id, opts);
             return true;
         } catch (e) {
