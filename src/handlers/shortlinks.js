@@ -10,8 +10,15 @@ module.exports = (bot) => {
         const fileCode = ctx.match[1];
         const userId = ctx.from.id;
         const apiKey = config.shortlinkApiKey;
+        const isAdmin = config.adminIds.includes(userId);
 
-        if (!apiKey) return ctx.answerCbQuery("⚠️ Shortlink API not configured!", { show_alert: true });
+        if (!apiKey) {
+            if (isAdmin) {
+                return ctx.answerCbQuery("⚠️ Shortlink API not configured! Please set URLSHORTX_API_KEY in .env", { show_alert: true });
+            } else {
+                return ctx.answerCbQuery("❌ This feature is currently unavailable.", { show_alert: true });
+            }
+        }
 
         try {
             // 1. Generate unique session ID

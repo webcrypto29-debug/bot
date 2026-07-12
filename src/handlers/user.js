@@ -35,7 +35,7 @@ module.exports = (bot) => {
         }
     };
 
-    const deliverFileOrBatch = async (ctx, code, userId, settings, isAdmin) => {
+    const deliverFileOrBatch = async (ctx, code, userId, settings, isAdmin, isVip) => {
         const file = await db.getFile(code);
         if (!file) return ctx.reply("❌ File not found!");
 
@@ -47,8 +47,10 @@ module.exports = (bot) => {
             success = await sendFile(ctx, file);
         }
 
-        if (success && !isAdmin) {
+        if (success && !isAdmin && !isVip) {
             await creditService.spendCredits(userId, settings.downloadCost);
+            await db.recordDownload(userId, code);
+        } else if (success) {
             await db.recordDownload(userId, code);
         }
         return success;
@@ -59,9 +61,10 @@ module.exports = (bot) => {
         if (!file) return ctx.reply("❌ Invalid link.");
 
         const userId = ctx.from.id;
-        const user = await db.getUser(userId) || { credits: 0 };
+        const user = await db.getUser(userId) || { credits: 0, status: 'active' };
         const settings = await db.getGlobalSettings();
         const isAdmin = config.adminIds.includes(userId);
+        const isVip = user.status === 'vip';
 
         let text = file.isBatch ? `📦 *Batch Ready*\n\n` : `📁 *File Ready*\n\n`;
         if (file.isBatch) {
@@ -70,9 +73,14 @@ module.exports = (bot) => {
         } else {
             text += `📛 *Name:* \`${file.file_name}\`\n⚖️ *Size:* \`${(file.file_size / (1024 * 1024)).toFixed(2)} MB\``;
         }
-        text += `\n\n💰 *Your Credits:* \`${user.credits}\`\n📥 *Download Cost:* \`${settings.downloadCost} Credits\``;
 
-        const kb = [[{ text: (user.credits >= settings.downloadCost || isAdmin) ? '⬇️ Download Now' : '💎 Earn Credits', callback_data: `dl_${payload}` }]];
+        if (!isVip && !isAdmin) {
+            text += `\n\n💰 *Your Credits:* \`${user.credits}\`\n📥 *Download Cost:* \`${settings.downloadCost} Credits\``;
+        } else if (isVip) {
+            text += `\n\n✨ *VIP Status:* \`Active\` (Unlimited Access)`;
+        }
+
+        const kb = [[{ text: (user.credits >= settings.downloadCost || isAdmin || isVip) ? '⬇️ Download Now' : '💎 Earn Credits', callback_data: `dl_${payload}` }]];
         kb.push([{ text: '🔙 Back', callback_data: 'main' }]);
 
         return ctx.reply(text, { parse_mode: 'Markdown', reply_markup: { inline_keyboard: kb } });
@@ -102,8 +110,9 @@ module.exports = (bot) => {
                         // Auto-Download Check
                         const user = await db.getUser(userId);
                         const isAdmin = config.adminIds.includes(userId);
-                        if (fileCode !== 'direct' && (user.credits >= settings.downloadCost || isAdmin)) {
-                            return deliverFileOrBatch(ctx, fileCode, userId, settings, isAdmin);
+                        const isVip = user.status === 'vip';
+                        if (fileCode !== 'direct' && (user.credits >= settings.downloadCost || isAdmin || isVip)) {
+                            return deliverFileOrBatch(ctx, fileCode, userId, settings, isAdmin, isVip);
                         }
                         if (fileCode !== 'direct') return showDownloadPage(ctx, fileCode);
                     }
@@ -117,8 +126,9 @@ module.exports = (bot) => {
                             const user = await db.getUser(userId);
                             const settings = await db.getGlobalSettings();
                             const isAdmin = config.adminIds.includes(userId);
-                            if (fileCode !== 'direct' && (user.credits >= settings.downloadCost || isAdmin)) {
-                                return deliverFileOrBatch(ctx, fileCode, userId, settings, isAdmin);
+                            const isVip = user.status === 'vip';
+                            if (fileCode !== 'direct' && (user.credits >= settings.downloadCost || isAdmin || isVip)) {
+                                return deliverFileOrBatch(ctx, fileCode, userId, settings, isAdmin, isVip);
                             }
                             if (fileCode !== 'direct') return showDownloadPage(ctx, fileCode);
                         }
@@ -185,26 +195,33 @@ module.exports = (bot) => {
             const isAdmin = config.adminIds.includes(userId);
             const settings = await db.getGlobalSettings();
 
-            const user = await db.getUser(userId) || { credits: 0 };
-            if (user.credits < settings.downloadCost && !isAdmin) {
+            const user = await db.getUser(userId) || { credits: 0, status: 'active' };
+            const isVip = user.status === 'vip';
+
+            if (user.credits < settings.downloadCost && !isAdmin && !isVip) {
                 const text = `━━━━━━━━━━━━━━━━━━\n` +
-                             `❌ *Insufficient Credits*\n\n` +
-                             `You need credits to download files.\n\n` +
-                             `*Earn Credits*\n\n` +
-                             `🔗 *Verification Link*\n` +
+                             `*Earn Download Credits*\n\n` +
+                             `Choose ANY ONE option below.\n\n` +
+                             `*Option 1*\n` +
+                             `📺 *Watch Rewarded Ad*\n\n` +
                              `Reward:\n` +
-                             `+2 Credits\n\n` +
-                             `Complete the verification to earn credits.\n\n` +
-                             `------------------------\n\n` +
-                             `📺 *Watch Rewarded Ad*\n` +
+                             `+${settings.rewardAd || 3} Credits\n\n` +
+                             `Watch one rewarded advertisement completely to earn ${settings.rewardAd || 3} credits.\n\n` +
+                             `[ Earn ${settings.rewardAd || 3} Credits ]\n\n` +
+                             `------------------------------------\n\n` +
+                             `*Option 2*\n` +
+                             `🔗 *Complete Verification*\n\n` +
                              `Reward:\n` +
-                             `+3 Credits\n\n` +
-                             `Watch the full rewarded ad.\n\n` +
+                             `+${settings.rewardVerification || 5} Credits\n\n` +
+                             `Complete one verification to earn ${settings.rewardVerification || 5} credits.\n\n` +
+                             `[ Earn ${settings.rewardVerification || 5} Credits ]\n\n` +
+                             `------------------------------------\n\n` +
+                             `You can use ANY option to earn download credits.\n` +
                              `━━━━━━━━━━━━━━━━━━`;
 
                 const kb = [
-                    [{ text: '🔓 Start Verification', callback_data: `short_${code}` }],
-                    [{ text: '📺 Watch Ad', callback_data: `watch_${code}` }],
+                    [{ text: `📺 Earn ${settings.rewardAd || 3} Credits`, callback_data: `watch_${code}` }],
+                    [{ text: `🔗 Earn ${settings.rewardVerification || 5} Credits`, callback_data: `short_${code}` }],
                     [{ text: '🔙 Back', callback_data: 'main' }]
                 ];
 
@@ -212,7 +229,7 @@ module.exports = (bot) => {
             }
 
             await ctx.answerCbQuery("✅ Delivering directly from Telegram...");
-            await deliverFileOrBatch(ctx, code, userId, settings, isAdmin);
+            await deliverFileOrBatch(ctx, code, userId, settings, isAdmin, isVip);
         } catch (e) {
             console.error("Download action error:", e);
             ctx.answerCbQuery("❌ Error processing download.");

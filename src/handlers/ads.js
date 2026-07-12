@@ -9,9 +9,15 @@ module.exports = (bot) => {
             const fileCode = ctx.match[1];
             const userId = ctx.from.id;
             const baseUrl = config.baseUrl;
+            const isAdmin = config.adminIds.includes(userId);
 
-            if (!baseUrl) return ctx.answerCbQuery("⚠️ BASE_URL not set in .env!", { show_alert: true });
-            if (!config.monetagZoneId) return ctx.answerCbQuery("⚠️ MONETAG_ZONE_ID not set!", { show_alert: true });
+            if (!config.monetagZoneId) {
+                if (isAdmin) {
+                    return ctx.answerCbQuery("⚠️ MONETAG_ZONE_ID not set in .env!", { show_alert: true });
+                } else {
+                    return ctx.answerCbQuery("❌ This feature is currently unavailable.", { show_alert: true });
+                }
+            }
 
             // 1. Generate unique session ID
             const sessionId = crypto.randomBytes(8).toString('hex').toUpperCase();
@@ -20,7 +26,16 @@ module.exports = (bot) => {
             await db.createAdSession(sessionId, userId);
 
             // 3. Construct the Web App / Page URL
-            const adUrl = `${baseUrl}/ad?session=${sessionId}&file=${fileCode}`;
+            // Fallback to Blogger if BASE_URL is missing
+            let adUrl;
+            let isWebApp = true;
+
+            if (!baseUrl) {
+                adUrl = `https://monetagad5367.blogspot.com/p/reward.html?session=${sessionId}&file=${fileCode}&bot=${config.botUsername}`;
+                isWebApp = false;
+            } else {
+                adUrl = `${baseUrl}/ad?session=${sessionId}&file=${fileCode}`;
+            }
 
             const text = `📺 *Rewarded Advertisement*\n\n` +
                          `Watch the complete advertisement to earn Credits.\n` +
@@ -28,7 +43,7 @@ module.exports = (bot) => {
                          `⚠️ *Note:* Click the button below to start the ad.`;
 
             const kb = [
-                [{ text: '▶️ Watch Ad Now', web_app: { url: adUrl } }],
+                isWebApp ? [{ text: '▶️ Watch Ad Now', web_app: { url: adUrl } }] : [{ text: '▶️ Watch Ad Now', url: adUrl }],
                 [{ text: '🔙 Cancel', callback_data: 'main' }]
             ];
 
